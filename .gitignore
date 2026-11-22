@@ -1,0 +1,19 @@
+# Dépendances
+node_modules/
+
+# Secrets : JAMAIS dans Git (seul .env.example, sans valeurs, est publié)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Sauvegardes de la base (données et empreintes de mots de passe, même chiffrées)
+sauvegardes/
+*.json.enc
+
+# Divers
+*.log
+*.zip
+.DS_Store
+coverage/

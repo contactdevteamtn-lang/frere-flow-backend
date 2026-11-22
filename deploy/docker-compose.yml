@@ -1,0 +1,41 @@
+# Mise en ligne complète en une commande (sur un serveur avec Docker) :
+#   1. placer les dossiers côte à côte :  frere-flow/   frere-flow-backend/
+#   2. remplir frere-flow-backend/.env  (voir DEPLOIEMENT.md : MONGO_URI, CORS_ORIGIN, BACKUP_KEY…)
+#   3. remplacer le domaine dans deploy/Caddyfile
+#   4. cd frere-flow-backend/deploy  &&  docker compose up -d --build
+services:
+  api:
+    build: ..
+    restart: unless-stopped
+    env_file: ../.env
+    environment:
+      NODE_ENV: production
+      TRUST_PROXY: "true"
+      COOKIE_SECURE: "true"
+      PORT: "4000"
+    volumes:
+      - sauvegardes:/app/sauvegardes
+    expose: ["4000"]
+
+  site:
+    build:
+      context: ../../frere-flow
+      args:
+        VITE_API_URL: /api
+    restart: unless-stopped
+    expose: ["3000"]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile.docker:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [api, site]
+
+volumes:
+  sauvegardes:
+  caddy_data:
+  caddy_config:

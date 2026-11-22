@@ -1,0 +1,32 @@
+{
+  "name": "frere-flow-backend",
+  "version": "1.0.0",
+  "description": "Serveur API de Frère Flow (Société Frère Mahjoub) — exécute la logique métier du front sur MongoDB",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "node --watch-path=./src src/server.js",
+    "start": "node src/server.js",
+    "verifier": "node src/scripts/verifier.js",
+    "seed": "node src/scripts/seed.js",
+    "seed:propre": "node src/scripts/seed.js --propre",
+    "test": "node --test --test-concurrency=1 test/api.test.js test/resilience.test.js",
+    "test:mongo": "node --test --test-concurrency=1 test/mongo.test.js",
+    "sync-domain": "node scripts/sync-domain.mjs",
+    "sauvegarde": "node src/services/backup.js",
+    "restaurer": "node src/services/backup.js restaurer",
+    "debloquer": "node src/scripts/debloquer.js",
+    "nettoyer-anciennes": "node src/scripts/nettoyer-anciennes.js"
+  },
+  "dependencies": {
+    "date-fns": "^4.1.0",
+    "mongodb": "^6.10.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "mongodb-memory-server": "^10.1.2"
+  }
+}
