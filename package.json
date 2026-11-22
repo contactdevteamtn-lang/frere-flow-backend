@@ -13,7 +13,7 @@
     "verifier": "node src/scripts/verifier.js",
     "seed": "node src/scripts/seed.js",
     "seed:propre": "node src/scripts/seed.js --propre",
-    "test": "node --test --test-concurrency=1 test/api.test.js test/resilience.test.js",
+    "test": "node --test --test-concurrency=1 test/api.test.js test/resilience.test.js test/proxy.test.js",
     "test:mongo": "node --test --test-concurrency=1 test/mongo.test.js",
     "sync-domain": "node scripts/sync-domain.mjs",
     "sauvegarde": "node src/services/backup.js",

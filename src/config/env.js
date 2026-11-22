@@ -66,6 +66,9 @@ export const env = {
   cookieSecure: bool(process.env.COOKIE_SECURE, production),
   // Derrière un serveur web (Caddy, Nginx…) : lire la vraie adresse IP dans X-Forwarded-For
   trustProxy: bool(process.env.TRUST_PROXY, false),
+  // Site qui relaie /api vers ce serveur (ex. Render : site et API à deux adresses) : secret partagé
+  // qui l'autorise à transmettre l'adresse IP réelle du visiteur (X-Real-Client-IP). 32 caractères minimum.
+  proxySecret: (process.env.PROXY_SECRET || '').length >= 32 ? process.env.PROXY_SECRET : '',
   // tentatives de connexion (mot de passe + codes) par adresse IP et par 15 minutes
   loginIpLimit: Number(process.env.LOGIN_IP_LIMIT || 30),
   // Opérations (enregistrements) par compte et par minute : bloque un script qui en enverrait en rafale
@@ -97,6 +100,7 @@ if (production) {
     console.error(`Configuration de production incomplète : ${problemes.join(' ; ')}`);
     process.exit(1);
   }
+  if (process.env.PROXY_SECRET && !env.proxySecret) console.warn('⚠ PROXY_SECRET ignoré : 32 caractères minimum.');
   if (env.demoLogin) console.warn('⚠ DEMO_LOGIN=true en production : les comptes de démonstration sont accessibles sans mot de passe.');
   if (env.allowDemoReset) console.warn('⚠ ALLOW_DEMO_RESET=true en production : la base peut être remplacée par les données de démonstration.');
   if (!env.cookieSecure) console.warn('⚠ COOKIE_SECURE=false en production : utilisez HTTPS.');

@@ -1,3 +1,5 @@
+import crypto from 'node:crypto';
+import net from 'node:net';
 import os from 'node:os';
 // Couche HTTP commune : en-têtes de sécurité, réponses JSON, lecture du corps, CORS / anti-CSRF,
 // cookies et limites anti-abus (force brute, saturation).
@@ -20,7 +22,19 @@ export const SECURITE = {
 
 // Derrière Caddy/Nginx : la DERNIÈRE adresse est celle ajoutée par notre serveur web (les précédentes
 // peuvent être inventées par le client pour contourner les limites)
-export const ipDe = (req) => (env.trustProxy && req.headers['x-forwarded-for']
+// Relais du site (PROXY_SECRET) : l'adresse réelle du visiteur n'est acceptée qu'avec le bon secret
+// (comparaison à temps constant), sinon n'importe qui pourrait choisir son adresse et contourner les limites.
+const egalSecret = (v) => {
+  const a = Buffer.from(String(v || '')); const b = Buffer.from(env.proxySecret);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+};
+const ipRelais = (req) => {
+  if (!env.proxySecret || !egalSecret(req.headers['x-proxy-secret'])) return '';
+  const ip = String(req.headers['x-real-client-ip'] || '').trim();
+  return net.isIP(ip) ? ip : '';
+};
+export const ipDe = (req) => ipRelais(req) || ipDirecte(req);
+const ipDirecte = (req) => (env.trustProxy && req.headers['x-forwarded-for']
   ? String(req.headers['x-forwarded-for']).split(',').map((s) => s.trim()).filter(Boolean).pop()
   : req.socket.remoteAddress) || '?';
 export const enHttps = (req) => req.socket.encrypted || (env.trustProxy && req.headers['x-forwarded-proto'] === 'https');
