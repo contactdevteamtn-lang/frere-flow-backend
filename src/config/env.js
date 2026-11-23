@@ -6,8 +6,15 @@ import { fileURLToPath } from 'node:url';
 
 const racine = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const fichier = path.join(racine, '.env');
-if (fs.existsSync(fichier)) {
-  for (const ligne of fs.readFileSync(fichier, 'utf8').split(/\r?\n/)) {
+// Ordre de priorité : variables de l'hébergeur, puis .env du dossier, puis « Secret File » .env de
+// l'hébergeur (Render le place dans /etc/secrets/.env). SECRETS_ENV_FILE permet un autre chemin.
+const fichiersEnv = [fichier, process.env.SECRETS_ENV_FILE || '/etc/secrets/.env'];
+const charges = [];
+for (const f of fichiersEnv) {
+  let contenu;
+  try { contenu = fs.readFileSync(f, 'utf8'); } catch { continue; }
+  charges.push(f);
+  for (const ligne of contenu.split(/\r?\n/)) {
     const m = ligne.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
     if (!m || ligne.trim().startsWith('#')) continue;
     let v = m[2].trim();
@@ -15,6 +22,7 @@ if (fs.existsSync(fichier)) {
     if (process.env[m[1]] === undefined) process.env[m[1]] = v;
   }
 }
+export const fichiersEnvCharges = charges;
 
 // Les règles de dates (échéances, rappels) utilisent le fuseau de la Tunisie, comme le front
 process.env.TZ ||= 'Africa/Tunis';
@@ -98,6 +106,8 @@ if (production) {
   if (env.store !== 'mongo' && process.env.STORE !== 'memory') problemes.push('MONGO_URI (sinon les données seraient perdues à chaque arrêt)');
   if (problemes.length) {
     console.error(`Configuration de production incomplète : ${problemes.join(' ; ')}`);
+    console.error(`  Fichiers .env lus : ${charges.length ? charges.join(', ') : 'aucun'}.`);
+    console.error('  Hébergeur (Render…) : ajoutez ces variables dans le service → Environment → Environment Variables, puis « Save, rebuild, and deploy ».');
     process.exit(1);
   }
   if (process.env.PROXY_SECRET && !env.proxySecret) console.warn('⚠ PROXY_SECRET ignoré : 32 caractères minimum.');
