@@ -251,9 +251,9 @@ describe('Référentiels (formulaires produits, clients, frigos, caisses)', () =
     assert.ok(s.clients.some((c) => c.code === 'CL-0099') && s.frigos.some((f) => f.code === 'FR4') && s.packagingTypes.some((t) => t.hex === '#222222'));
   });
   it('stock : entrée, transfert, sortie insuffisante refusée', async () => {
-    await ok(op(T.admin, 'addStockMovement', [{ productId: 'prd_2', frigoId: 'frg_3', quantity: 100, movementType: 'ENTREE', reference: 'BR-T', notes: '' }]));
-    await ok(op(T.admin, 'addStockMovement', [{ productId: 'prd_2', frigoId: 'frg_3', toFrigoId: 'frg_1', quantity: 40, movementType: 'TRANSFERT', reference: 'TR-T', notes: '' }]));
-    assert.equal((await op(T.admin, 'addStockMovement', [{ productId: 'prd_2', frigoId: 'frg_3', quantity: 99999, movementType: 'SORTIE', reference: '', notes: '' }])).status, 422);
+    await ok(op(T.admin, 'addStockMovement', [{ productId: 'prd_2', frigoId: 'frg_2', quantity: 100, movementType: 'ENTREE', reference: 'BR-T', notes: '' }]));
+    await ok(op(T.admin, 'addStockMovement', [{ productId: 'prd_2', frigoId: 'frg_2', toFrigoId: 'frg_1', quantity: 40, movementType: 'TRANSFERT', reference: 'TR-T', notes: '' }]));
+    assert.equal((await op(T.admin, 'addStockMovement', [{ productId: 'prd_2', frigoId: 'frg_2', quantity: 99999, movementType: 'SORTIE', reference: '', notes: '' }])).status, 422);
   });
   it('caisses : sortie puis retour limité au solde', async () => {
     await ok(op(T.admin, 'addPackMovement', [{ clientId: 'cli_3', packagingTypeId: 'pkt_2', teamId: 'team_1', type: 'SORTIE', quantity: 4, notes: '' }]));
@@ -967,9 +967,9 @@ describe('Modèles et contrôleurs par entité (API REST)', () => {
 
   it('stock et caisse : niveaux, mouvement, solde', async () => {
     const niveaux = (await ok(get('/stock'))).items;
-    const avant = niveaux.find((l) => l.productId === 'prd_2').parFrigo.frg_3;
-    await ok(post('/stock/mouvements', { data: { productId: 'prd_2', frigoId: 'frg_3', quantity: 10, movementType: 'ENTREE', reference: 'BR-REST', notes: '' } }));
-    const apres = (await ok(get('/stock'))).items.find((l) => l.productId === 'prd_2').parFrigo.frg_3;
+    const avant = niveaux.find((l) => l.productId === 'prd_2').parFrigo.frg_2;
+    await ok(post('/stock/mouvements', { data: { productId: 'prd_2', frigoId: 'frg_2', quantity: 10, movementType: 'ENTREE', reference: 'BR-REST', notes: '' } }));
+    const apres = (await ok(get('/stock'))).items.find((l) => l.productId === 'prd_2').parFrigo.frg_2;
     assert.equal(Math.round((apres - avant) * 1000) / 1000, 10);
     const solde = await ok(get('/cash/solde'));
     assert.equal(typeof solde.total, 'number');

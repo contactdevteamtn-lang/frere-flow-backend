@@ -1410,7 +1410,8 @@ function buildSeed() {
     frigos: [
       {
         id: "frg_1",
-        name: "\u063A\u0631\u0641\u0629 \u0627\u0644\u062A\u0628\u0631\u064A\u062F 1",
+        name: "\u063A\u0631\u0641\u0629 \u062A\u0628\u0631\u064A\u062F \u0641\u0648\u0632\u064A",
+        nameAlt: "Frigo Fawzi",
         code: "FR1",
         capacity: 2e4,
         location: "\u0627\u0644\u0645\u0646\u0637\u0642\u0629 \u0627\u0644\u0635\u0646\u0627\u0639\u064A\u0629\u060C \u0635\u0641\u0627\u0642\u0633",
@@ -1419,20 +1420,12 @@ function buildSeed() {
       },
       {
         id: "frg_2",
-        name: "\u063A\u0631\u0641\u0629 \u0627\u0644\u062A\u0628\u0631\u064A\u062F 2",
+        name: "\u063A\u0631\u0641\u0629 \u062A\u0628\u0631\u064A\u062F \u062D\u0633\u0627\u0645",
+        nameAlt: "Frigo Houssem",
         code: "FR2",
         capacity: 12e3,
         location: "\u0637\u0631\u064A\u0642 \u0642\u0627\u0628\u0633 \u0643\u0644\u0645 4",
         description: "\u0627\u0644\u062E\u0636\u0631\u0648\u0627\u062A \u0627\u0644\u062C\u0630\u0631\u064A\u0629",
-        active: true
-      },
-      {
-        id: "frg_3",
-        name: "\u063A\u0631\u0641\u0629 \u0627\u0644\u062A\u0628\u0631\u064A\u062F 3",
-        code: "FR3",
-        capacity: 8e3,
-        location: "\u0633\u0627\u0642\u064A\u0629 \u0627\u0644\u062F\u0627\u0626\u0631",
-        description: "\u0641\u0648\u0627\u0643\u0647",
         active: true
       }
     ],
