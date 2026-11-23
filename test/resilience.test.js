@@ -204,6 +204,49 @@ describe('Validation des formulaires (serveur = source de vérité)', () => {
   });
 });
 
+describe('Produit + frigo dans le même formulaire (saveProduct)', () => {
+  const produit = { name: 'فلفل حار', category: 'خضروات', unit: 'kg', salePrice: 3, alertThreshold: 50, active: true };
+  it('produit créé et quantité entrée dans le frigo choisi, en une seule opération', async () => {
+    const { state: avant } = await app.engine.current();
+    const frigo = avant.frigos.find((f) => f.active);
+    const r = await call('POST', '/ops/saveProduct', { args: [produit, { frigoId: frigo.id, quantity: 120 }] }, T.admin);
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    const { state } = await app.engine.current();
+    const p = state.products.find((x) => x.name === 'فلفل حار');
+    assert.ok(p, 'produit créé');
+    const mv = state.stockMovements.find((m) => m.productId === p.id);
+    assert.deepEqual([mv.frigoId, mv.quantity, mv.movementType], [frigo.id, 120, 'ENTREE']);
+  });
+  it('frigo inconnu ou quantité négative → refusé (422), rien n’est créé', async () => {
+    const { state: avant } = await app.engine.current();
+    for (const stock of [{ frigoId: 'frigo_inconnu', quantity: 10 }, { frigoId: avant.frigos[0].id, quantity: -3 }]) {
+      const r = await call('POST', '/ops/saveProduct', { args: [{ ...produit, name: 'منتج مرفوض' }, stock] }, T.admin);
+      assert.equal(r.status, 422, JSON.stringify(stock));
+    }
+    const { state } = await app.engine.current();
+    assert.equal(state.products.some((x) => x.name === 'منتج مرفوض'), false);
+  });
+  it('droit « produits » sans droit « stock » : produit seul accepté, avec quantité → 403', async () => {
+    const role = await call('POST', '/ops/upsert', { args: ['roles', { name: 'Catalogue seul', permissions: ['produits'] }] }, T.admin);
+    assert.equal(role.status, 200, JSON.stringify(role.body));
+    const { state: s1 } = await app.engine.current();
+    const roleId = s1.roles.find((x) => x.name === 'Catalogue seul').id;
+    const u = await call('POST', '/ops/upsert', { args: ['users', { name: 'Catalogue Seul', email: 'catalogue@frere-mahjoub.tn', password: 'Catalogue2026', roleIds: [roleId] }] }, T.admin);
+    assert.equal(u.status, 200, JSON.stringify(u.body));
+    const cookie = await connexion('catalogue@frere-mahjoub.tn', 'Catalogue2026');
+    const frigoId = s1.frigos.find((f) => f.active).id;
+    const avecStock = await call('POST', '/ops/saveProduct', { args: [{ ...produit, name: 'منتج ب' }, { frigoId, quantity: 5 }] }, cookie);
+    assert.equal(avecStock.status, 403);
+    const sansStock = await call('POST', '/ops/saveProduct', { args: [{ ...produit, name: 'منتج ب' }, null] }, cookie);
+    assert.equal(sansStock.status, 200, JSON.stringify(sansStock.body));
+  });
+  it('compte du marché (sans droit « produits ») → 403', async () => {
+    const cookie = await connexion('marche@frere-mahjoub.tn', 'Marche2026');
+    const r = await call('POST', '/ops/saveProduct', { args: [{ ...produit, name: 'منتج ج' }, null] }, cookie);
+    assert.equal(r.status, 403);
+  });
+});
+
 describe('Limite globale par adresse IP', () => {
   it('au-delà de 600 requêtes/minute → 429', async () => {
     for (const k of [...compteurs.keys()]) if (k.startsWith('req:')) compteurs.delete(k);

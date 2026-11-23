@@ -11,7 +11,7 @@ export const OPS = {
   createSale: ops.createSale, cancelSale: ops.cancelSale, setSaleStatus: ops.setSaleStatus,
   addCreditPayment: ops.addCreditPayment, addManualCredit: ops.addManualCredit, setCreditStatus: ops.setCreditStatus,
   addStockMovement: ops.addStockMovement, addPackMovement: ops.addPackMovement, addCash: ops.addCash,
-  upsert: ops.upsert, remove: ops.remove,
+  upsert: ops.upsert, remove: ops.remove, saveProduct: ops.saveProduct,
   saveMarket: markets.saveMarket, saveMarketClient: markets.saveMarketClient, createMarketTrip: markets.createMarketTrip,
   createMarketSale: markets.createMarketSale, closeMarketTrip: markets.closeMarketTrip,
   createDeadline: deadlines.createDeadline, updateDeadline: deadlines.updateDeadline, payDeadline: deadlines.payDeadline,

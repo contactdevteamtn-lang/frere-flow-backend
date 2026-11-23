@@ -30,6 +30,7 @@ __export(ops_exports, {
   packBalance: () => packBalance,
   remove: () => remove,
   saleStatusId: () => saleStatusId,
+  saveProduct: () => saveProduct,
   setCreditStatus: () => setCreditStatus,
   setSaleStatus: () => setSaleStatus,
   stockOf: () => stockOf,
@@ -407,6 +408,26 @@ function addStockMovement(prev, inp, userId, date) {
     `${inp.movementType} ${inp.quantity} \u2014 ${p}`,
     date
   );
+  return s;
+}
+function saveProduct(prev, item, stock, userId, date) {
+  let s = upsert(prev, "products", item, userId, date);
+  if (stock && stock.quantity > 0) {
+    const productId = item.id ?? s.products[0].id;
+    s = addStockMovement(
+      s,
+      {
+        productId,
+        frigoId: stock.frigoId,
+        quantity: stock.quantity,
+        movementType: "ENTREE",
+        reference: s.products.find((p) => p.id === productId)?.reference ?? "",
+        notes: item.id ? "\u0625\u0636\u0627\u0641\u0629 \u0645\u0646 \u0628\u0637\u0627\u0642\u0629 \u0627\u0644\u0645\u0646\u062A\u062C" : "\u0645\u062E\u0632\u0648\u0646 \u0623\u0648\u0644\u064A"
+      },
+      userId,
+      date
+    );
+  }
   return s;
 }
 function addPackMovement(prev, inp, userId, date) {
@@ -2106,6 +2127,18 @@ var RULES = {
     if (!rule) fail(V.invalid);
     return [c, rule(s, obj(item))];
   },
+  // produit + (facultatif) quantité entrée dans un frigo actif
+  saveProduct: (s, [item, st]) => {
+    const p = product(s, obj(item));
+    if (st === null || st === void 0) return [p, null];
+    const x = obj(st);
+    if (x["quantity"] === void 0 || x["quantity"] === null || x["quantity"] === "" || x["quantity"] === 0)
+      return [p, null];
+    return [
+      p,
+      { frigoId: ref(s, "frigos", x["frigoId"], { active: true }), quantity: qty(x["quantity"]) }
+    ];
+  },
   remove: (s, [c, id]) => {
     if (!(String(c) in COLLS)) fail(V.invalid);
     return [c, ref(s, c, id)];
@@ -2248,6 +2281,7 @@ var OPS = {
   addCash,
   upsert,
   remove,
+  saveProduct,
   saveMarket,
   saveMarketClient,
   createMarketTrip,

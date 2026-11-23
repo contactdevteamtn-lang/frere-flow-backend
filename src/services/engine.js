@@ -52,6 +52,8 @@ const OP_PERM = {
   createDeadline: ['credits'], updateDeadline: ['credits'], payDeadline: ['credits', 'paiements', 'marches'],
   markReminder: ['credits'], cancelDeadline: ['credits'],
   addStockMovement: ['stock'], addPackMovement: ['emballages'], addCash: ['caisse'],
+  // produit (+ stock dans un frigo : droit « stock » vérifié en plus dans controlesServeur)
+  saveProduct: [MANAGE_PERMISSION.products],
   saveSettings: ['parametres'],
 };
 // Droit pour créer / modifier / supprimer dans une collection : défini dans chaque modèle (models/*.js)
@@ -107,6 +109,8 @@ const directeursActifs = (users) => users.filter((u) => u.active && estDirecteur
 
 /** Contrôles propres au serveur avant certaines opérations */
 function controlesServeur(state, me, name, args) {
+  // ── Produit + entrée en stock : la quantité dans un frigo demande aussi le droit « stock » ──
+  if (name === 'saveProduct' && args[1] && !permissionsOf(state, me).has('stock')) throw new HttpError(403, MSG.interdit, 'INTERDIT');
   // ── Comptes : le directeur général est protégé contre les autres administrateurs ──
   if (name === 'upsert' && args[0] === 'users') {
     const u = args[1]; const ancien = state.users.find((x) => x.id === u?.id);
