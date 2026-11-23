@@ -233,8 +233,9 @@ describe('Utilisateurs et mots de passe', () => {
 
 describe('Référentiels (formulaires produits, clients, frigos, caisses)', () => {
   it('produit : création, modification du prix (historique), suppression', async () => {
-    const r = await ok(op(T.admin, 'upsert', ['products', { reference: 'PDT-008', name: 'كوسة', category: 'خضروات', unit: 'kg', salePrice: 2.4, alertThreshold: 150, active: true }]));
-    const p = (r.collections?.products || r.state.products).find((x) => x.reference === 'PDT-008');
+    const r = await ok(op(T.admin, 'upsert', ['products', { name: 'كوسة', category: 'خضروات', unit: 'kg', salePrice: 2.4, alertThreshold: 150, active: true }]));
+    const p = (r.collections?.products || r.state.products).find((x) => x.name === 'كوسة');
+    assert.match(p.reference, /^PDT-\d{3}$/, 'référence attribuée automatiquement');
     await ok(op(T.admin, 'upsert', ['products', { ...p, salePrice: 2.75 }]));
     const s = await etat(T.admin);
     assert.equal(s.products.find((x) => x.id === p.id).salePrice, 2.75);
@@ -339,12 +340,15 @@ describe('Contrôle de chaque formulaire (exemples dans les messages)', () => {
     await refuse(T.admin, 'upsert', ['products', { ...P, alertThreshold: 1.5 }], V.threshold);
     await refuse(T.admin, 'upsert', ['products', { ...P, unit: 'k g 1' }], V.unit);
     await refuse(T.admin, 'upsert', ['products', { ...P, category: 'x' }], V.category);
-    await refuse(T.admin, 'upsert', ['products', { ...P, reference: 'pdt 001!' }], V.productRef);
-    await ok(op(T.admin, 'upsert', ['products', { ...P, reference: 'XYZ-1' }]));
-    await refuse(T.admin, 'upsert', ['products', { ...P, reference: 'xyz-1', name: 'آخر' }], V.refUsed);
-    const auto = await ok(op(T.admin, 'upsert', ['products', { ...P, reference: 'PDT-001', name: 'منتج تلقائي' }]));
-    assert.match((auto.collections?.products || auto.state.products)[0].reference, /^PDT-\d{3}$/);
-    assert.notEqual((auto.collections?.products || auto.state.products)[0].reference, 'PDT-001', 'référence automatique en double corrigée');
+    // référence jamais saisie : toute valeur envoyée (invalide, en double, personnalisée) est remplacée par PDT-xxx
+    const refs = [];
+    for (const reference of ['pdt 001!', 'XYZ-1', 'PDT-001', '<b>']) {
+      const r = await ok(op(T.admin, 'upsert', ['products', { ...P, reference, name: `منتج ${refs.length + 1}` }]));
+      const ref = (r.collections?.products || r.state.products)[0].reference;
+      assert.match(ref, /^PDT-\d{3}$/, reference);
+      refs.push(ref);
+    }
+    assert.equal(new Set(refs).size, refs.length, 'jamais deux fois la même référence');
   });
   it('Frigos et types de caisses', async () => {
     const F = { name: 'غرفة التبريد 5', code: 'FR5', capacity: 9000, location: '', description: '', active: true };
@@ -918,14 +922,16 @@ describe('Modèles et contrôleurs par entité (API REST)', () => {
 
   it('produits : créer, chercher, modifier, détail du stock, supprimer', async () => {
     const r = await ok(post('/products', { data: { reference: 'PDT-REST', name: 'فلفل', category: 'خضروات', unit: 'kg', salePrice: 3.2, alertThreshold: 50, active: true } }));
-    const p = (r.collections?.products || r.state.products).find((x) => x.reference === 'PDT-REST');
+    const p = (r.collections?.products || r.state.products).find((x) => x.name === 'فلفل');
     assert.ok(p);
-    assert.equal((await ok(get('/products?q=pdt-rest'))).total, 1);
+    assert.match(p.reference, /^PDT-\d{3}$/, 'référence envoyée ignorée, attribuée automatiquement');
+    assert.equal((await ok(get(`/products?q=${p.reference.toLowerCase()}`))).total, 1);
     await ok(post(`/products/${p.id}`, { data: { ...p, salePrice: 3.5 } }));
     const d = await ok(get(`/products/${p.id}`));
     assert.equal(d.salePrice, 3.5);
     assert.ok(Array.isArray(d.stockParFrigo) && d.stockTotal === 0);
-    assert.equal((await post('/products', { data: { reference: 'PDT-REST', name: 'doublon', category: 'x', unit: 'kg', salePrice: 1, alertThreshold: 1, active: true } })).status, 422, 'référence en double');
+    await ok(post(`/products/${p.id}`, { data: { ...p, reference: 'CHANGEE' } }));
+    assert.equal((await ok(get(`/products/${p.id}`))).reference, p.reference, 'référence non modifiable');
     await ok(post(`/products/${p.id}/supprimer`, {}));
     assert.equal((await get(`/products/${p.id}`)).status, 404);
   });

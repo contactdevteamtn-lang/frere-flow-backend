@@ -1874,17 +1874,13 @@ function client(s, item) {
   });
 }
 function product(s, item) {
-  existing(s, "products", item);
-  let r = text(item["reference"], { max: 20, msg: V.productRef }).toUpperCase().replace(/\s+/g, "");
+  const old = existing(s, "products", item);
   const others = s.products.filter((x) => x.id !== item["id"]).map((x) => x.reference.toUpperCase());
-  if (!r || !item["id"] && /^PDT-\d{3}$/.test(r) && others.includes(r))
-    r = nextCode(
-      others.filter((x) => /^PDT-\d+$/.test(x)),
-      "PDT-",
-      3
-    );
-  if (!/^[A-Z0-9][A-Z0-9-]{1,19}$/.test(r)) fail(V.productRef);
-  if (others.includes(r)) fail(V.refUsed);
+  const r = old ? String(old["reference"]) : nextCode(
+    others.filter((x) => /^PDT-\d+$/.test(x)),
+    "PDT-",
+    3
+  );
   const unit = text(item["unit"] || "kg", { max: 10, msg: V.unit });
   if (!/^[\p{L}.]{1,10}$/u.test(unit)) fail(V.unit);
   return withId(item, {
