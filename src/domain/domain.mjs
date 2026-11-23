@@ -15,9 +15,11 @@ __export(ops_exports, {
   addPackMovement: () => addPackMovement,
   addStockMovement: () => addStockMovement,
   cancelSale: () => cancelSale,
+  cashBalance: () => cashBalance,
   clientBoxBalance: () => clientBoxBalance,
   clientBoxTypeIds: () => clientBoxTypeIds,
   createSale: () => createSale,
+  creditStatusChoices: () => creditStatusChoices,
   creditStatusId: () => creditStatusId,
   effectiveCreditCode: () => effectiveCreditCode,
   isClientBoxType: () => isClientBoxType,
@@ -29,6 +31,7 @@ __export(ops_exports, {
   nextId: () => nextId,
   packBalance: () => packBalance,
   remove: () => remove,
+  saleStatusChoices: () => saleStatusChoices,
   saleStatusId: () => saleStatusId,
   saveProduct: () => saveProduct,
   setCreditStatus: () => setCreditStatus,
@@ -234,19 +237,38 @@ function createSale(prev, inp, userId, date) {
 function cancelSale(prev, saleId, reason2, userId, date) {
   const s = structuredClone(prev);
   const sale = s.sales.find((x) => x.id === saleId);
+  if (!sale) throw new BusinessError("\u0639\u0645\u0644\u064A\u0629 \u0627\u0644\u0628\u064A\u0639 \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F\u0629");
   if (sale.saleStatusId === saleStatusId(s, "CANCELLED")) return prev;
+  const trip = sale.marketTripId ? s.marketTrips.find((t) => t.id === sale.marketTripId) : null;
+  if (trip && trip.status !== "OPEN")
+    throw new BusinessError("\u064A\u0648\u0645 \u0627\u0644\u0633\u0648\u0642 \u0645\u063A\u0644\u0642: \u0644\u0627 \u064A\u0645\u0643\u0646 \u0625\u0644\u063A\u0627\u0621 \u0645\u0628\u064A\u0639\u0627\u062A\u0647");
   sale.saleStatusId = saleStatusId(s, "CANCELLED");
-  for (const it of s.saleItems.filter((i) => i.saleId === saleId)) {
-    s.stockMovements.unshift({
-      id: nextId(s, "mv"),
-      productId: it.productId,
-      frigoId: sale.frigoId,
-      quantity: it.quantity,
-      movementType: "ENTREE",
+  if (!trip)
+    for (const it of s.saleItems.filter((i) => i.saleId === saleId)) {
+      s.stockMovements.unshift({
+        id: nextId(s, "mv"),
+        productId: it.productId,
+        frigoId: sale.frigoId,
+        quantity: it.quantity,
+        movementType: "ENTREE",
+        date,
+        userId,
+        reference: sale.number,
+        notes: "\u0625\u0644\u063A\u0627\u0621 \u0628\u064A\u0639 \u2014 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u0645\u062E\u0632\u0648\u0646"
+      });
+    }
+  for (const pk of prev.packagingMovements.filter((m) => m.saleId === saleId)) {
+    s.packagingMovements.unshift({
+      id: nextId(s, "pk"),
+      clientId: pk.clientId,
+      packagingTypeId: pk.packagingTypeId,
+      teamId: pk.teamId,
+      saleId,
+      type: pk.type === "SORTIE" ? "RETOUR" : "SORTIE",
+      quantity: pk.quantity,
       date,
       userId,
-      reference: sale.number,
-      notes: "\u0625\u0644\u063A\u0627\u0621 \u0628\u064A\u0639 \u2014 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u0645\u062E\u0632\u0648\u0646"
+      notes: `\u0625\u0644\u063A\u0627\u0621 \u0628\u064A\u0639 ${sale.number}`
     });
   }
   for (const c of s.credits.filter((c2) => c2.saleId === saleId))
@@ -275,9 +297,22 @@ function cancelSale(prev, saleId, reason2, userId, date) {
   );
   return s;
 }
+function saleStatusChoices(s, sale) {
+  const code2 = s.saleStatuses.find((x) => x.id === sale.saleStatusId)?.code;
+  if (code2 === "CANCELLED" || sale.paidAmount > 0) return [sale.saleStatusId];
+  return [saleStatusId(s, "PENDING"), saleStatusId(s, "CONFIRMED")];
+}
 function setSaleStatus(prev, saleId, statusId, userId, date) {
   const s = structuredClone(prev);
   const sale = s.sales.find((x) => x.id === saleId);
+  if (!sale) throw new BusinessError("\u0639\u0645\u0644\u064A\u0629 \u0627\u0644\u0628\u064A\u0639 \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F\u0629");
+  if (sale.saleStatusId === statusId) return prev;
+  if (sale.saleStatusId === saleStatusId(s, "CANCELLED"))
+    throw new BusinessError("\u0639\u0645\u0644\u064A\u0629 \u0627\u0644\u0628\u064A\u0639 \u0645\u0644\u063A\u0627\u0629");
+  if (!saleStatusChoices(s, sale).includes(statusId))
+    throw new BusinessError(
+      "\u0627\u0644\u062D\u0627\u0644\u0629 \u062A\u064F\u062D\u0633\u0628 \u062A\u0644\u0642\u0627\u0626\u064A\u0627\u064B \u0645\u0646 \u0627\u0644\u0645\u062F\u0641\u0648\u0639\u0627\u062A: \u0633\u062C\u0651\u0644 \u062F\u0641\u0639\u0629\u060C \u0623\u0648 \u0627\u0633\u062A\u0639\u0645\u0644 \u0632\u0631 \u0627\u0644\u0625\u0644\u063A\u0627\u0621 \u0644\u0625\u0644\u063A\u0627\u0621 \u0627\u0644\u0628\u064A\u0639"
+    );
   const old = s.saleStatuses.find((x) => x.id === sale.saleStatusId)?.label;
   sale.saleStatusId = statusId;
   audit(
@@ -295,6 +330,9 @@ function addCreditPayment(prev, inp, userId, date) {
   const s = structuredClone(prev);
   const c = s.credits.find((x) => x.id === inp.creditId);
   if (!c) throw new BusinessError("\u0627\u0644\u062F\u064A\u0646 \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F");
+  const venteAnnulee = !!c.saleId && s.sales.find((x) => x.id === c.saleId)?.saleStatusId === saleStatusId(s, "CANCELLED");
+  if (c.creditStatusId === creditStatusId(s, "CANCELLED") || venteAnnulee)
+    throw new BusinessError("\u0627\u0644\u062F\u064A\u0646 \u0645\u0644\u063A\u0649: \u0644\u0627 \u064A\u0645\u0643\u0646 \u062A\u0633\u062C\u064A\u0644 \u062F\u0641\u0639\u0629 \u0639\u0644\u064A\u0647");
   const amount2 = round(inp.amount);
   if (!(amount2 > 0)) throw new BusinessError("\u0627\u0644\u0645\u0628\u0644\u063A \u063A\u064A\u0631 \u0635\u0627\u0644\u062D");
   if (amount2 > c.remainingAmount + 1e-9)
@@ -368,9 +406,22 @@ function manualCredit(prev, inp, userId, date) {
   audit(s, userId, "\u0625\u0646\u0634\u0627\u0621 \u062F\u064A\u0646", "\u062F\u064A\u0646", id, `${inp.amount} TND`, date);
   return s;
 }
+var statutCalcule = (s, c) => creditStatusId(s, c.remainingAmount <= 0 ? "PAID" : c.paidAmount > 0 ? "PARTIAL" : "ACTIVE");
+function creditStatusChoices(s, c) {
+  if (c.saleId) return [c.creditStatusId];
+  if (c.creditStatusId === creditStatusId(s, "CANCELLED"))
+    return [c.creditStatusId, statutCalcule(s, c)];
+  return [c.creditStatusId, creditStatusId(s, "CANCELLED")];
+}
 function setCreditStatus(prev, creditId, statusId, userId, date) {
   const s = structuredClone(prev);
   const c = s.credits.find((x) => x.id === creditId);
+  if (!c) throw new BusinessError("\u0627\u0644\u062F\u064A\u0646 \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F");
+  if (c.creditStatusId === statusId) return prev;
+  if (c.saleId)
+    throw new BusinessError("\u062F\u064A\u0646 \u0645\u0631\u062A\u0628\u0637 \u0628\u0628\u064A\u0639: \u064A\u064F\u0633\u062F\u064E\u0651\u062F \u0628\u062A\u0633\u062C\u064A\u0644 \u062F\u0641\u0639\u0629\u060C \u0648\u064A\u064F\u0644\u063A\u0649 \u0628\u0625\u0644\u063A\u0627\u0621 \u0639\u0645\u0644\u064A\u0629 \u0627\u0644\u0628\u064A\u0639");
+  if (!creditStatusChoices(s, c).includes(statusId))
+    throw new BusinessError("\u0627\u0644\u062D\u0627\u0644\u0629 \u062A\u064F\u062D\u0633\u0628 \u062A\u0644\u0642\u0627\u0626\u064A\u0627\u064B \u0645\u0646 \u0627\u0644\u0645\u062F\u0641\u0648\u0639\u0627\u062A: \u0633\u062C\u0651\u0644 \u062F\u0641\u0639\u0629");
   c.creditStatusId = statusId;
   audit(
     s,
@@ -456,9 +507,17 @@ function addPackMovement(prev, inp, userId, date) {
   audit(s, userId, action, "\u0635\u0646\u062F\u0648\u0642", id, `${inp.quantity} \xD7 ${t}`, date);
   return s;
 }
+var cashBalance = (s, teamId) => round(
+  s.cash.filter((c) => c.teamId === teamId).reduce((a, c) => a + (c.type === "ENCAISSEMENT" ? c.amount : -c.amount), 0)
+);
 function addCash(prev, inp, userId, date) {
   const s = structuredClone(prev);
   if (!inp.teamId || !(inp.amount > 0)) throw new BusinessError("\u0641\u0631\u064A\u0642 \u0641\u064A\u063A\u0648 \u0648\u0627\u0644\u0645\u0628\u0644\u063A \u0645\u0637\u0644\u0648\u0628\u0627\u0646");
+  if (inp.type === "DECAISSEMENT") {
+    const solde = cashBalance(s, inp.teamId);
+    if (inp.amount > solde + 1e-9)
+      throw new BusinessError(`\u0631\u0635\u064A\u062F \u0627\u0644\u0635\u0646\u062F\u0648\u0642 \u063A\u064A\u0631 \u0643\u0627\u0641\u064D (${solde} TND \u0645\u062A\u0648\u0641\u0631\u0629)`);
+  }
   const id = nextId(s, "cash");
   s.cash.unshift({ id, ...inp, userId, date });
   audit(
