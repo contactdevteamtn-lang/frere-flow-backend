@@ -19,9 +19,10 @@ import { BoxMovement } from './BoxMovement.js';
 import { AuditLog } from './AuditLog.js';
 import { Market } from './Market.js';
 import { MarketTrip } from './MarketTrip.js';
+import { Invoice } from './Invoice.js';
 
-export const MODELS = [Role, User, Team, Client, Product, Frigo, StockMovement, SaleStatus, CreditStatus, Sale, SaleItem, Payment, Credit, CreditPayment, CashEntry, Box, BoxMovement, AuditLog, Market, MarketTrip];
-export { Role, User, Team, Client, Product, Frigo, StockMovement, SaleStatus, CreditStatus, Sale, SaleItem, Payment, Credit, CreditPayment, CashEntry, Box, BoxMovement, AuditLog, Market, MarketTrip };
+export const MODELS = [Role, User, Team, Client, Product, Frigo, StockMovement, SaleStatus, CreditStatus, Sale, SaleItem, Payment, Credit, CreditPayment, CashEntry, Box, BoxMovement, AuditLog, Market, MarketTrip, Invoice];
+export { Role, User, Team, Client, Product, Frigo, StockMovement, SaleStatus, CreditStatus, Sale, SaleItem, Payment, Credit, CreditPayment, CashEntry, Box, BoxMovement, AuditLog, Market, MarketTrip, Invoice };
 
 /** Forme des documents par collection (utilisée par verifierSchemas) */
 export const SCHEMAS = Object.fromEntries(MODELS.map((m) => [m.collection, m.schema]));

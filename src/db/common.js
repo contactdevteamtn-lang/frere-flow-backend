@@ -4,7 +4,7 @@
 export const COLLECTIONS = [
   'roles', 'users', 'teams', 'clients', 'products', 'frigos', 'stockMovements', 'saleStatuses', 'creditStatuses',
   'sales', 'saleItems', 'payments', 'credits', 'creditPayments', 'cash', 'packagingTypes', 'packagingMovements',
-  'auditLogs', 'markets', 'marketTrips',
+  'auditLogs', 'markets', 'marketTrips', 'invoices',
 ];
 
 export class ConflictError extends Error {

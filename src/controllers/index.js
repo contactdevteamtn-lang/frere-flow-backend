@@ -9,6 +9,7 @@ import { productsController } from './products.controller.js';
 import { frigosController } from './frigos.controller.js';
 import { stockController } from './stock.controller.js';
 import { salesController } from './sales.controller.js';
+import { invoicesController } from './invoices.controller.js';
 import { creditsController } from './credits.controller.js';
 import { paymentsController } from './payments.controller.js';
 import { cashController } from './cash.controller.js';
@@ -19,6 +20,6 @@ import { auditController } from './audit.controller.js';
 
 export const CONTROLEURS_ENTITES = [
   usersController, rolesController, teamsController, clientsController, productsController, frigosController,
-  stockController, salesController, creditsController, paymentsController, cashController, boxesController,
+  stockController, salesController, invoicesController, creditsController, paymentsController, cashController, boxesController,
   marketsController, settingsController, auditController,
 ];

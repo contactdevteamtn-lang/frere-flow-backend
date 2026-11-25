@@ -21,7 +21,9 @@ __export(ops_exports, {
   createSale: () => createSale,
   creditStatusChoices: () => creditStatusChoices,
   creditStatusId: () => creditStatusId,
+  creerFacturesManquantes: () => creerFacturesManquantes,
   effectiveCreditCode: () => effectiveCreditCode,
+  invoiceOfSale: () => invoiceOfSale,
   isClientBoxType: () => isClientBoxType,
   isMarketClient: () => isMarketClient,
   isMarketCredit: () => isMarketCredit,
@@ -35,6 +37,7 @@ __export(ops_exports, {
   saleStatusId: () => saleStatusId,
   saveProduct: () => saveProduct,
   setCreditStatus: () => setCreditStatus,
+  setInvoiceStatus: () => setInvoiceStatus,
   setSaleStatus: () => setSaleStatus,
   stockOf: () => stockOf,
   stockTotal: () => stockTotal,
@@ -223,6 +226,7 @@ function createSale(prev, inp, userId, date) {
       notes: own ? `\u0635\u0646\u0627\u062F\u064A\u0642 \u0627\u0644\u0639\u0645\u064A\u0644 \u2014 \u0639\u0645\u0644\u064A\u0629 \u0628\u064A\u0639 ${number}` : `\u0639\u0645\u0644\u064A\u0629 \u0628\u064A\u0639 ${number}`
     });
   }
+  ajouterFacture(s, s.sales[0], "VALIDEE", date);
   audit(
     s,
     userId,
@@ -230,6 +234,65 @@ function createSale(prev, inp, userId, date) {
     "\u0639\u0645\u0644\u064A\u0629 \u0628\u064A\u0639",
     id,
     `${number} \u2014 \u0627\u0644\u0625\u062C\u0645\u0627\u0644\u064A ${total} TND, \u0627\u0644\u0645\u062F\u0641\u0648\u0639 ${paid2} TND`,
+    date
+  );
+  return s;
+}
+function numeroFacture(s, date) {
+  const prefixe = `FAC-${date.slice(0, 4)}-`;
+  const n = s.invoices.filter((f) => f.number.startsWith(prefixe)).map((f) => Number(f.number.slice(prefixe.length))).filter(Number.isFinite);
+  return `${prefixe}${String(Math.max(0, ...n) + 1).padStart(4, "0")}`;
+}
+function ajouterFacture(s, sale, status, date) {
+  s.invoices.unshift({
+    id: nextId(s, "fac"),
+    number: numeroFacture(s, sale.saleDate || date),
+    saleId: sale.id,
+    clientId: sale.clientId,
+    teamId: sale.teamId,
+    amount: sale.totalAmount,
+    status,
+    date: sale.saleDate || date,
+    notes: ""
+  });
+}
+var invoiceOfSale = (s, saleId) => s.invoices.find((f) => f.saleId === saleId);
+function creerFacturesManquantes(s) {
+  s.invoices ??= [];
+  const avec = new Set(s.invoices.map((f) => f.saleId));
+  const sans = s.sales.filter((v) => !avec.has(v.id)).sort((a, b) => a.saleDate.localeCompare(b.saleDate) || a.number.localeCompare(b.number));
+  const annulee = saleStatusId(s, "CANCELLED");
+  for (const v of sans)
+    ajouterFacture(s, v, v.saleStatusId === annulee ? "ANNULEE" : "VALIDEE", v.saleDate);
+  return sans.length;
+}
+function setInvoiceStatus(prev, invoiceId, status, note, userId, date) {
+  const f = prev.invoices.find((x) => x.id === invoiceId);
+  if (!f) throw new BusinessError("\u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629 \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F\u0629");
+  if (f.status === "ANNULEE") throw new BusinessError("\u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629 \u0645\u0644\u063A\u0627\u0629: \u0644\u0627 \u064A\u0645\u0643\u0646 \u062A\u063A\u064A\u064A\u0631\u0647\u0627");
+  if ((status === "A_VOIR" || status === "ANNULEE") && note.trim().length < 3)
+    throw new BusinessError("\u0627\u0643\u062A\u0628 \u0627\u0644\u0633\u0628\u0628 (3 \u0623\u062D\u0631\u0641 \u0639\u0644\u0649 \u0627\u0644\u0623\u0642\u0644)");
+  if (status === f.status && note === f.notes) return prev;
+  if (status === "ANNULEE") {
+    const s2 = cancelSale(prev, f.saleId, note, userId, date);
+    const fac2 = s2.invoices.find((x) => x.id === invoiceId);
+    fac2.notes = note;
+    return s2;
+  }
+  const s = structuredClone(prev);
+  const fac = s.invoices.find((x) => x.id === invoiceId);
+  const avant = fac.status;
+  fac.status = status;
+  fac.notes = status === "A_VOIR" ? note.trim() : "";
+  fac.updatedAt = date;
+  const libelle = { VALIDEE: "\u0635\u0627\u0644\u062D\u0629", A_VOIR: "\u0644\u0644\u0645\u0631\u0627\u062C\u0639\u0629", ANNULEE: "\u0645\u0644\u063A\u0627\u0629" };
+  audit(
+    s,
+    userId,
+    "\u062A\u063A\u064A\u064A\u0631 \u062D\u0627\u0644\u0629 \u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629",
+    "\u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629",
+    fac.id,
+    `${fac.number}: ${libelle[avant]} \u2192 ${libelle[status]}${fac.notes ? ` \u2014 ${fac.notes}` : ""}`,
     date
   );
   return s;
@@ -273,6 +336,11 @@ function cancelSale(prev, saleId, reason2, userId, date) {
   }
   for (const c of s.credits.filter((c2) => c2.saleId === saleId))
     c.creditStatusId = creditStatusId(s, "CANCELLED");
+  for (const f of s.invoices.filter((x) => x.saleId === saleId)) {
+    f.status = "ANNULEE";
+    f.notes ||= reason2;
+    f.updatedAt = date;
+  }
   const refunded = s.payments.filter((p) => p.saleId === saleId).reduce((a, p) => a + p.amount, 0) + s.creditPayments.filter((cp) => s.credits.find((c) => c.id === cp.creditId)?.saleId === saleId).reduce((a, p) => a + p.amount, 0);
   if (refunded > 0)
     s.cash.unshift({
@@ -1509,6 +1577,7 @@ function buildSeed() {
       { id: "mkt_monastir", name: "\u0633\u0648\u0642 \u0627\u0644\u0645\u0646\u0633\u062A\u064A\u0631", city: "\u0627\u0644\u0645\u0646\u0633\u062A\u064A\u0631", active: true }
     ],
     marketTrips: [],
+    invoices: [],
     sales: [],
     saleItems: [],
     payments: [],
@@ -2102,6 +2171,11 @@ var RULES = {
   },
   cancelSale: (s, [id, r]) => [ref(s, "sales", id), reason(r)],
   setSaleStatus: (s, [id, st]) => [ref(s, "sales", id), ref(s, "saleStatuses", st)],
+  setInvoiceStatus: (s, [id, st, note]) => [
+    ref(s, "invoices", id),
+    oneOf(st, ["VALIDEE", "A_VOIR", "ANNULEE"]),
+    reason(note)
+  ],
   addCreditPayment: (s, [i]) => {
     const x = obj(i);
     return [
@@ -2321,6 +2395,7 @@ var OPS = {
   createSale,
   cancelSale,
   setSaleStatus,
+  setInvoiceStatus,
   addCreditPayment,
   addManualCredit,
   setCreditStatus,
@@ -2343,7 +2418,7 @@ var OPS = {
 };
 var BusinessError2 = BusinessError;
 var stockOf2 = stockOf;
-var { isMarketCredit: isMarketCredit2, isMarketClient: isMarketClient2, isReadOnly: isReadOnly2, clientBoxTypeIds: clientBoxTypeIds2 } = ops_exports;
+var { isMarketCredit: isMarketCredit2, isMarketClient: isMarketClient2, isReadOnly: isReadOnly2, clientBoxTypeIds: clientBoxTypeIds2, creerFacturesManquantes: creerFacturesManquantes2, invoiceOfSale: invoiceOfSale2 } = ops_exports;
 export {
   ALL_PERMS,
   BusinessError2 as BusinessError,
@@ -2357,7 +2432,9 @@ export {
   buildSeed,
   clientBoxBalance,
   clientBoxTypeIds2 as clientBoxTypeIds,
+  creerFacturesManquantes2 as creerFacturesManquantes,
   effectiveCreditCode,
+  invoiceOfSale2 as invoiceOfSale,
   isMarketClient2 as isMarketClient,
   isMarketCredit2 as isMarketCredit,
   isReadOnly2 as isReadOnly,

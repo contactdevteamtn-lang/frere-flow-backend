@@ -1,6 +1,6 @@
 // Moteur : exécute les opérations métier du front (src/domain) sur l'état enregistré,
 // après contrôle de la session, des permissions et de l'équipe (Figo), puis enregistre le résultat.
-import { OPS, BusinessError, buildSeed, validateOp, validateSettings, isMarketCredit, isMarketClient, isReadOnly, MARKET_ROLE, READONLY_ROLE, CLIENT_BOX_TYPE, STABLE_USER_IDS } from '../domain/domain.mjs';
+import { OPS, BusinessError, buildSeed, validateOp, validateSettings, isMarketCredit, isMarketClient, isReadOnly, creerFacturesManquantes, MARKET_ROLE, READONLY_ROLE, CLIENT_BOX_TYPE, STABLE_USER_IDS } from '../domain/domain.mjs';
 import { ConflictError, diff, toStored } from '../db/common.js';
 import { MANAGE_PERMISSION } from '../models/index.js';
 import { hashPassword, isHash } from './auth.js';
@@ -54,6 +54,8 @@ const OP_PERM = {
   addStockMovement: ['stock'], addPackMovement: ['emballages'], addCash: ['caisse'],
   // produit (+ stock dans un frigo : droit « stock » vérifié en plus dans controlesServeur)
   saveProduct: [MANAGE_PERMISSION.products],
+  // facture d'une vente normale : « ventes » ; d'une vente du marché : « marchés » (contrôlé dans controlesServeur)
+  setInvoiceStatus: ['ventes', 'marches'],
   saveSettings: ['parametres'],
 };
 // Droit pour créer / modifier / supprimer dans une collection : défini dans chaque modèle (models/*.js)
@@ -79,6 +81,7 @@ function teamsTouched(state, name, args) {
     case 'createSale': case 'addManualCredit': case 'addPackMovement': case 'addCash': case 'createDeadline': case 'createMarketTrip':
       return [a?.teamId];
     case 'cancelSale': case 'setSaleStatus': return [byId('sales', a)];
+    case 'setInvoiceStatus': return [byId('invoices', a)];
     case 'addCreditPayment': case 'payDeadline': case 'updateDeadline': return [byId('credits', a?.creditId)];
     case 'setCreditStatus': case 'markReminder': case 'cancelDeadline': return [byId('credits', a)];
     case 'createMarketSale': case 'closeMarketTrip': return [byId('marketTrips', a?.tripId)];
@@ -128,6 +131,13 @@ function controlesServeur(state, me, name, args) {
   if ((name === 'upsert' || name === 'remove') && args[0] === 'roles') {
     if (!estDirecteur(me)) throw new HttpError(403, MSG.reserveDirecteur, 'DIRECTEUR');
     if (name === 'remove' && state.users.some((u) => u.roleIds.includes(args[1]))) throw new BusinessError(MSG.roleUtilise);
+  }
+  if (name === 'setInvoiceStatus') {
+    const perms = permissionsOf(state, me);
+    const facture = state.invoices.find((f) => f.id === args[0]);
+    const vente = facture && state.sales.find((x) => x.id === facture.saleId);
+    const marche = !!vente?.marketTripId;
+    if (marche ? !perms.has('marches') : !perms.has('ventes')) throw new HttpError(403, MSG.interdit, 'INTERDIT');
   }
   if (name === 'addCreditPayment' || name === 'payDeadline') {
     const perms = permissionsOf(state, me);
@@ -189,6 +199,7 @@ export function vue(state, me) {
     out.cash = state.cash.filter(sienne);
     out.packagingMovements = state.packagingMovements.filter(sienne);
     out.marketTrips = state.marketTrips.filter(sienne);
+    out.invoices = (state.invoices ?? []).filter(sienne);
   }
   // Compte « marchés seulement » : uniquement les clients, ventes, dettes et caisses des marchés
   const NORMAL = ['clients', 'ventes', 'credits', 'paiements', 'caisse', 'emballages', 'rapports', 'dashboard'];
@@ -204,10 +215,11 @@ export function vue(state, me) {
     out.cash = [];
     const clients = new Set(out.clients.map((c) => c.id));
     out.packagingMovements = out.packagingMovements.filter((m) => clients.has(m.clientId));
+    out.invoices = (out.invoices ?? []).filter((f) => ventes.has(f.saleId));
     out.users = out.users.filter((u) => u.id === me.id || out.sales.some((x) => x.userId === u.id) || out.marketTrips.some((t) => t.userId === u.id));
   }
   if (!perms.has('historique')) {
-    const visibles = new Set([...out.sales, ...out.credits, ...out.clients, ...out.marketTrips].map((x) => x.id));
+    const visibles = new Set([...out.sales, ...out.credits, ...out.clients, ...out.marketTrips, ...(out.invoices ?? [])].map((x) => x.id));
     out.auditLogs = state.auditLogs.filter((l) => l.entity !== SECURITE_ENTITE && l.entityId && visibles.has(l.entityId));
   }
   return out;
@@ -246,6 +258,8 @@ export function migrer(state) {
     if (!s.roles.some((r) => r.id === role.id)) { s.roles.push({ ...role, permissions: [...role.permissions] }); change = true; }
   }
   if (!s.packagingTypes.some((t) => t.clientOwned)) { s.packagingTypes.push({ ...CLIENT_BOX_TYPE }); change = true; }
+  // factures : une par vente (bases créées avant la section Factures)
+  if (creerFacturesManquantes(s) > 0) change = true;
   // comptes stables « marché » et « consultation » (une seule fois : supprimés ensuite = pas recréés)
   if (!s.auditLogs.some((l) => l.action === ACTION_STABLES)) {
     const modele = buildSeed().users.filter((u) => STABLE_USER_IDS.includes(u.id) && u.id !== 'u_super');
@@ -274,7 +288,7 @@ export function seedState(mode = 'demo') {
     Object.assign(s, {
       // les 3 comptes stables : directeur, marché, consultation
       users: s.users.filter((u) => STABLE_USER_IDS.includes(u.id)), clients: [], stockMovements: [], sales: [], saleItems: [], payments: [], credits: [],
-      creditPayments: [], cash: [], packagingMovements: [], auditLogs: [], marketTrips: [],
+      creditPayments: [], cash: [], packagingMovements: [], auditLogs: [], marketTrips: [], invoices: [],
     });
   }
   for (const u of s.users) u.password = hashPassword(u.password);
@@ -406,7 +420,7 @@ export function createEngine(store) {
       const next = migrer(state);
       if (next) {
         await store.commit(state, next, version);
-        console.log('Base mise à niveau : rôles « مسؤول السوق » et « اطلاع فقط », caisses des clients.');
+        console.log('Base mise à niveau (rôles, caisses des clients, factures des ventes existantes).');
       }
     },
   };

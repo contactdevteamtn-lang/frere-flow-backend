@@ -204,6 +204,40 @@ describe('Validation des formulaires (serveur = source de vérité)', () => {
   });
 });
 
+describe('Factures (une par vente)', () => {
+  it('API : liste, « à voir » avec motif, annulation qui annule la vente, refus ensuite', async () => {
+    const { state: s0 } = await app.engine.current();
+    assert.equal(s0.invoices.length, s0.sales.length, 'une facture par vente');
+    const f = s0.invoices.find((x) => x.status === 'VALIDEE' && !s0.sales.find((v) => v.id === x.saleId)?.marketTripId);
+    const liste = await call('GET', '/invoices', undefined, T.admin);
+    assert.equal(liste.status, 200);
+    assert.ok(liste.body.total >= 1);
+    assert.equal((await call('POST', `/invoices/${f.id}/statut`, { status: 'A_VOIR', note: '' }, T.admin)).status, 422, 'motif obligatoire');
+    assert.equal((await call('POST', `/invoices/${f.id}/statut`, { status: 'PAYEE', note: 'x' }, T.admin)).status, 422, 'statut inconnu');
+    assert.equal((await call('POST', `/invoices/${f.id}/statut`, { status: 'A_VOIR', note: 'prix à revoir' }, T.admin)).status, 200);
+    const annul = await call('POST', `/invoices/${f.id}/statut`, { status: 'ANNULEE', note: 'client a refusé' }, T.admin);
+    assert.equal(annul.status, 200, JSON.stringify(annul.body));
+    const { state: s1 } = await app.engine.current();
+    assert.equal(s1.invoices.find((x) => x.id === f.id).status, 'ANNULEE');
+    assert.equal(s1.sales.find((v) => v.id === f.saleId).saleStatusId, 'ss_cancelled', 'la vente est annulée avec la facture');
+    assert.equal((await call('POST', `/invoices/${f.id}/statut`, { status: 'VALIDEE', note: '' }, T.admin)).status, 422, 'facture annulée figée');
+  });
+  it('compte sans droit « ventes » (consultation) : refusé', async () => {
+    const cookie = await connexion('consultation@frere-mahjoub.tn', 'Consultation2026');
+    const { state } = await app.engine.current();
+    const f = state.invoices.find((x) => x.status === 'VALIDEE');
+    assert.equal((await call('POST', `/invoices/${f.id}/statut`, { status: 'A_VOIR', note: 'essai' }, cookie)).status, 403);
+  });
+  it('base d\x27une version précédente : factures créées au démarrage, sans doublon', async () => {
+    const { migrer } = await import('../src/services/engine.js');
+    const { state } = await app.engine.current();
+    const ancienne = { ...structuredClone(state), invoices: [] };
+    const apres = migrer(ancienne);
+    assert.equal(apres.invoices.length, state.sales.length);
+    assert.equal(migrer(apres), null, 'rien à refaire au démarrage suivant');
+  });
+});
+
 describe('Produit + frigo dans le même formulaire (saveProduct)', () => {
   const produit = { name: 'فلفل حار', category: 'خضروات', unit: 'kg', salePrice: 3, alertThreshold: 50, active: true };
   it('produit créé et quantité entrée dans le frigo choisi, en une seule opération', async () => {
