@@ -31,6 +31,7 @@ services:
     ports: ["80:80", "443:443"]
     volumes:
       - ./Caddyfile.docker:/etc/caddy/Caddyfile:ro
+      - /var/log/caddy:/var/log/caddy   # journal d'accès lu par Fail2Ban sur l'hôte
       - caddy_data:/data
       - caddy_config:/config
     depends_on: [api, site]

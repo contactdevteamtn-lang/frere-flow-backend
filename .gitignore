@@ -17,3 +17,10 @@ sauvegardes/
 *.zip
 .DS_Store
 coverage/
+
+# Dumps MongoDB (même chiffrés) : jamais dans Git
+*.gpg
+*.archive
+*.archive.gz
+*.bson
+dump/

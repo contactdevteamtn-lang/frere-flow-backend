@@ -1,0 +1,31 @@
+# /etc/fail2ban/jail.local — bannissement temporaire des IP qui insistent.
+[DEFAULT]
+bantime  = 1h
+findtime = 10m
+maxretry = 5
+# bannissements répétés : durée doublée à chaque récidive (jusqu'à 1 semaine)
+bantime.increment = true
+bantime.maxtime   = 1w
+backend  = systemd
+# ne jamais bannir la machine elle-même
+ignoreip = 127.0.0.1/8 ::1
+
+[sshd]
+enabled  = true
+port     = ssh
+maxretry = 4
+
+# Connexions refusées à l'application (mot de passe ou code faux, trop d'essais) : lues dans le
+# journal d'accès JSON de Caddy (voir Caddyfile : log → /var/log/caddy/access.log).
+# Complète les limites déjà appliquées par l'API (par IP et par compte).
+[frere-flow-auth]
+enabled  = true
+backend  = auto
+filter   = frere-flow-auth
+logpath  = /var/log/caddy/access.log
+port     = http,https
+# Caddy tourne dans Docker : le bannissement doit aller dans la chaîne DOCKER-USER (sinon sans effet)
+banaction = iptables-multiport[chain=DOCKER-USER]
+maxretry = 10
+findtime = 10m
+bantime  = 1h

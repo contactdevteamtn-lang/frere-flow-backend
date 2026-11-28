@@ -1,0 +1,7 @@
+# Scripts et fichiers de configuration du serveur : fins de ligne Linux (LF), sinon ils échouent sous Ubuntu
+*.sh text eol=lf
+*.conf text eol=lf
+*.local text eol=lf
+Caddyfile* text eol=lf
+*.yml text eol=lf
+Dockerfile text eol=lf
