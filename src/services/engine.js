@@ -45,7 +45,8 @@ export const MSG = {
 // Permission(s) du front exigée(s) pour chaque opération (une seule suffit)
 const OP_PERM = {
   createSale: ['ventes'], cancelSale: ['ventes'], setSaleStatus: ['ventes'],
-  createMarketTrip: ['marches'], createMarketSale: ['marches'], closeMarketTrip: ['marches'],
+  // expédition (chargement du camion) : direction / admin uniquement ; le rôle « marché » vend et clôture
+  createMarketTrip: ['administration'], createMarketSale: ['marches'], closeMarketTrip: ['marches'],
   saveMarket: ['marches'], saveMarketClient: ['marches'],
   // dette normale : crédits/paiements ; dette d'un marché : marchés (contrôlé dans controlesServeur)
   addCreditPayment: ['credits', 'paiements', 'marches'], addManualCredit: ['credits'], setCreditStatus: ['credits'],
@@ -218,7 +219,9 @@ export function vue(state, me) {
     out.invoices = (out.invoices ?? []).filter((f) => ventes.has(f.saleId));
     out.users = out.users.filter((u) => u.id === me.id || out.sales.some((x) => x.userId === u.id) || out.marketTrips.some((t) => t.userId === u.id));
   }
-  if (!perms.has('historique')) {
+  // consultation seule : aucun historique (journal d'activité), même si le rôle a la permission
+  if (isReadOnly(state, me)) out.auditLogs = [];
+  else if (!perms.has('historique')) {
     const visibles = new Set([...out.sales, ...out.credits, ...out.clients, ...out.marketTrips, ...(out.invoices ?? [])].map((x) => x.id));
     out.auditLogs = state.auditLogs.filter((l) => l.entity !== SECURITE_ENTITE && l.entityId && visibles.has(l.entityId));
   }

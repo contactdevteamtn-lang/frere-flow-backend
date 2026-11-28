@@ -32,6 +32,7 @@ __export(ops_exports, {
   manualCredit: () => manualCredit,
   nextId: () => nextId,
   packBalance: () => packBalance,
+  prochaineReference: () => prochaineReference,
   remove: () => remove,
   saleStatusChoices: () => saleStatusChoices,
   saleStatusId: () => saleStatusId,
@@ -46,6 +47,11 @@ __export(ops_exports, {
 var BusinessError = class extends Error {
 };
 var nextId = (s, p) => `${p}_${(++s.seq).toString(36)}`;
+function prochaineReference(existantes, prefixe, date) {
+  const debut = `${prefixe}-${date.slice(0, 4)}-`;
+  const n = existantes.filter((r) => r?.startsWith(debut)).map((r) => Number(r.slice(debut.length))).filter(Number.isFinite);
+  return `${debut}${String(Math.max(0, ...n) + 1).padStart(4, "0")}`;
+}
 var round = (n) => Math.round(n * 1e3) / 1e3;
 var saleStatusId = (s, code2) => s.saleStatuses.find((x) => x.code === code2).id;
 var creditStatusId = (s, code2) => s.creditStatuses.find((x) => x.code === code2).id;
@@ -133,7 +139,11 @@ function createSale(prev, inp, userId, date) {
   const paid2 = round(Math.min(Math.max(inp.paid || 0, 0), total));
   const remaining = round(total - paid2);
   const id = nextId(s, "sale");
-  const number = `FM-${date.slice(0, 4)}-${String(s.sales.length + 1).padStart(4, "0")}`;
+  const number = prochaineReference(
+    s.sales.map((x) => x.number),
+    "FM",
+    date
+  );
   const statusCode = remaining === 0 ? "PAID" : paid2 > 0 ? "PARTIAL" : "PENDING";
   s.sales.unshift({
     id,
@@ -516,7 +526,12 @@ function addStockMovement(prev, inp, userId, date) {
   const out = inp.movementType === "SORTIE" || inp.movementType === "TRANSFERT" ? inp.quantity : inp.movementType === "AJUSTEMENT" && inp.quantity < 0 ? -inp.quantity : 0;
   if (out > av) throw new BusinessError(`\u0645\u062E\u0632\u0648\u0646 \u063A\u064A\u0631 \u0643\u0627\u0641\u064D (${av} \u0645\u062A\u0648\u0641\u0631\u0629)`);
   const id = nextId(s, "mv");
-  s.stockMovements.unshift({ id, ...inp, date, userId });
+  const reference = inp.reference || prochaineReference(
+    s.stockMovements.map((m) => m.reference),
+    "MVT",
+    date
+  );
+  s.stockMovements.unshift({ id, ...inp, reference, date, userId });
   const p = s.products.find((x) => x.id === inp.productId)?.name;
   audit(
     s,
@@ -587,7 +602,12 @@ function addCash(prev, inp, userId, date) {
       throw new BusinessError(`\u0631\u0635\u064A\u062F \u0627\u0644\u0635\u0646\u062F\u0648\u0642 \u063A\u064A\u0631 \u0643\u0627\u0641\u064D (${solde} TND \u0645\u062A\u0648\u0641\u0631\u0629)`);
   }
   const id = nextId(s, "cash");
-  s.cash.unshift({ id, ...inp, userId, date });
+  const reference = prochaineReference(
+    s.cash.map((c) => c.reference),
+    "CAI",
+    date
+  );
+  s.cash.unshift({ id, ...inp, reference, userId, date });
   audit(
     s,
     userId,
@@ -1524,9 +1544,9 @@ function buildSeed() {
       ["PDT-005", "\u0641\u0644\u0641\u0644", "\u062E\u0636\u0631\u0648\u0627\u062A", 2.2],
       ["PDT-006", "\u062A\u0641\u0627\u062D", "\u0641\u0648\u0627\u0643\u0647", 3.8],
       ["PDT-007", "\u0628\u0631\u062A\u0642\u0627\u0644 \u0645\u0627\u0644\u0637\u064A", "\u0641\u0648\u0627\u0643\u0647", 2.5]
-    ].map(([reference2, name, category, salePrice], i) => ({
+    ].map(([reference, name, category, salePrice], i) => ({
       id: `prd_${i + 1}`,
-      reference: String(reference2),
+      reference: String(reference),
       name: String(name),
       category: String(category),
       unit: "kg",
@@ -1539,7 +1559,7 @@ function buildSeed() {
         id: "frg_1",
         name: "\u063A\u0631\u0641\u0629 \u062A\u0628\u0631\u064A\u062F \u0641\u0648\u0632\u064A",
         nameAlt: "Frigo Fawzi",
-        code: "FR1",
+        code: "FAWZI",
         capacity: 2e4,
         location: "\u0627\u0644\u0645\u0646\u0637\u0642\u0629 \u0627\u0644\u0635\u0646\u0627\u0639\u064A\u0629\u060C \u0635\u0641\u0627\u0642\u0633",
         description: "\u063A\u0631\u0641\u0629 \u0627\u0644\u062A\u0628\u0631\u064A\u062F \u0627\u0644\u0631\u0626\u064A\u0633\u064A\u0629",
@@ -1549,7 +1569,7 @@ function buildSeed() {
         id: "frg_2",
         name: "\u063A\u0631\u0641\u0629 \u062A\u0628\u0631\u064A\u062F \u062D\u0633\u0627\u0645",
         nameAlt: "Frigo Houssem",
-        code: "FR2",
+        code: "HOUSSEM",
         capacity: 12e3,
         location: "\u0637\u0631\u064A\u0642 \u0642\u0627\u0628\u0633 \u0643\u0644\u0645 4",
         description: "\u0627\u0644\u062E\u0636\u0631\u0648\u0627\u062A \u0627\u0644\u062C\u0630\u0631\u064A\u0629",
@@ -1941,11 +1961,6 @@ function day(v, required = true) {
 var isoDate = (v, fallback) => typeof v === "string" && !Number.isNaN(Date.parse(v)) && v.length <= 40 ? v : fallback;
 var method = (v) => METHODS.includes(String(v)) ? String(v) : fail(V.method);
 var oneOf = (v, values) => values.includes(v) ? v : fail(V.type);
-var reference = (v) => {
-  const s = text(v, { max: 30, msg: V.reference });
-  if (s && !/^[\p{L}\p{N}][\p{L}\p{N} \-_/.#]*$/u.test(s)) fail(V.reference);
-  return s;
-};
 var code = (v, required = true) => {
   const s = text(v, { max: 10, msg: V.code }).toUpperCase().replace(/\s+/g, "");
   if (!s) return required ? fail(V.code) : "";
@@ -2213,7 +2228,8 @@ var RULES = {
         ...type === "TRANSFERT" ? { toFrigoId: ref(s, "frigos", x["toFrigoId"], { active: true }) } : {},
         quantity,
         movementType: type,
-        reference: reference(x["reference"]),
+        reference: "",
+        // attribuée automatiquement par l'opération
         notes: notes(x["notes"])
       }
     ];
@@ -2239,7 +2255,8 @@ var RULES = {
         type: oneOf(x["type"], ["ENCAISSEMENT", "DECAISSEMENT"]),
         method: method(x["method"]),
         amount: amount(x["amount"]),
-        reference: reference(x["reference"]),
+        reference: "",
+        // attribuée automatiquement par l'opération
         description: text(x["description"], { min: 3, max: 200, msg: V.description })
       }
     ];

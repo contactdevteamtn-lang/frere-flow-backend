@@ -355,7 +355,7 @@ describe('Contrôle de chaque formulaire (exemples dans les messages)', () => {
     await refuse(T.admin, 'upsert', ['frigos', { ...F, capacity: 0 }], V.capacity);
     await refuse(T.admin, 'upsert', ['frigos', { ...F, capacity: 10.5 }], V.capacity);
     await refuse(T.admin, 'upsert', ['frigos', { ...F, code: 'FR 5 !' }], V.code);
-    await refuse(T.admin, 'upsert', ['frigos', { ...F, code: 'fr1' }], V.codeUsed);
+    await refuse(T.admin, 'upsert', ['frigos', { ...F, code: 'fawzi' }], V.codeUsed);
     const K = { name: 'صندوق رمادي', color: 'رمادي', hex: '#777777', description: '', totalAvailable: 50, active: true };
     await refuse(T.admin, 'upsert', ['packagingTypes', { ...K, hex: 'red' }], V.hex);
     await refuse(T.admin, 'upsert', ['packagingTypes', { ...K, totalAvailable: -3 }], V.total);
@@ -401,7 +401,7 @@ describe('Contrôle de chaque formulaire (exemples dans les messages)', () => {
   it('Caisse, stock, caisses clients, marchés, paramètres', async () => {
     await refuse(T.admin, 'addCash', [{ teamId: 'team_1', type: 'DECAISSEMENT', method: 'ESPECES', amount: 10, reference: '', description: 'ab' }], V.description);
     await refuse(T.admin, 'addCash', [{ teamId: 'team_1', type: 'VOL', method: 'ESPECES', amount: 10, reference: '', description: 'Gasoil' }], V.type);
-    await refuse(T.admin, 'addCash', [{ teamId: 'team_1', type: 'DECAISSEMENT', method: 'ESPECES', amount: 10, reference: '<b>x</b>', description: 'Gasoil' }], V.reference);
+    // référence de caisse : attribuée automatiquement (une saisie, même invalide, est ignorée)
     await refuse(T.admin, 'addStockMovement', [{ productId: 'prd_1', frigoId: 'frg_1', quantity: 0, movementType: 'ENTREE', reference: '', notes: '' }], V.quantity);
     await refuse(T.admin, 'addStockMovement', [{ productId: 'prd_1', frigoId: 'frg_1', quantity: 0, movementType: 'AJUSTEMENT', reference: '', notes: '' }], V.adjust);
     await refuse(T.admin, 'addPackMovement', [{ clientId: 'cli_1', packagingTypeId: 'pkt_1', teamId: 'team_1', type: 'SORTIE', quantity: 0, notes: '' }], V.boxes);
@@ -444,7 +444,9 @@ describe('Rôles marché / consultation, séparation des marchés, caisses des c
     const tripId = 'trip_testmarche1';
     const s0 = await etat(T.admin);
     const pid = s0.products.find((x) => x.active && stockOf(s0, x.id, 'frg_1') >= 40).id;
-    await ok(op(M, 'createMarketTrip', [{ id: tripId, marketId: 'mkt_sousse', teamId: 'team_1', loads: [{ productId: pid, frigoId: 'frg_1', quantity: 40 }], boxes: [{ typeId: 'pkt_1', quantity: 10 }, { typeId: 'pkt_client', quantity: 99 }], notes: '' }]));
+    // l'expédition est créée par la direction (le rôle « marché » ne peut pas en créer : 403)
+    assert.equal((await op(M, 'createMarketTrip', [{ id: 'trip_refuse0001', marketId: 'mkt_sousse', teamId: 'team_1', loads: [{ productId: pid, frigoId: 'frg_1', quantity: 1 }], boxes: [], notes: '' }])).status, 403);
+    await ok(op(T.admin, 'createMarketTrip', [{ id: tripId, marketId: 'mkt_sousse', teamId: 'team_1', loads: [{ productId: pid, frigoId: 'frg_1', quantity: 40 }], boxes: [{ typeId: 'pkt_1', quantity: 10 }, { typeId: 'pkt_client', quantity: 99 }], notes: '' }]));
     let s = await etat(M);
     assert.deepEqual(s.marketTrips.find((t) => t.id === tripId).boxes, [{ typeId: 'pkt_1', quantity: 10 }], 'caisses client jamais dans le camion');
     await ok(op(M, 'createMarketSale', [{ tripId, clientId: 'mc_1', items: [{ productId: pid, quantity: 10, unitPrice: 2 }], boxes: [{ typeId: 'pkt_1', quantity: 2 }, { typeId: 'pkt_client', quantity: 4 }], paid: 5, method: 'ESPECES', notes: '' }]));

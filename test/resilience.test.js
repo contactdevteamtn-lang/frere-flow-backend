@@ -204,6 +204,38 @@ describe('Validation des formulaires (serveur = source de vérité)', () => {
   });
 });
 
+describe('Droits par rôle (expédition, consultation, direction)', () => {
+  it('rôle « marché » : création d’expédition refusée (403), direction autorisée', async () => {
+    const { state } = await app.engine.current();
+    const marche = await connexion('marche@frere-mahjoub.tn', 'Marche2026');
+    const trip = (id) => ({ args: [{ id, marketId: state.markets[0].id, teamId: state.teams[0].id, loads: [{ productId: state.products[0].id, frigoId: state.frigos[0].id, quantity: 1 }], boxes: [], notes: '' }] });
+    assert.equal((await call('POST', '/ops/createMarketTrip', trip('trip_droits0001'), marche)).status, 403);
+    const r = await call('POST', '/ops/createMarketTrip', trip('trip_droits0002'), T.admin);
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+  });
+  it('consultation seule : aucun historique envoyé, aucune écriture', async () => {
+    const cookie = await connexion('consultation@frere-mahjoub.tn', 'Consultation2026');
+    const r = await call('GET', '/state', undefined, cookie);
+    assert.equal(r.status, 200);
+    assert.deepEqual(r.body.state.auditLogs, []);
+    const w = await call('POST', '/ops/addCash', { args: [{ teamId: 'team_1', type: 'ENCAISSEMENT', method: 'ESPECES', amount: 1, reference: '', description: 'essai' }] }, cookie);
+    assert.equal(w.status, 403);
+  });
+  it('direction : modifie le nom de son compte et celui d’un autre utilisateur ; employé refusé', async () => {
+    const { state } = await app.engine.current();
+    const moi = state.users.find((u) => u.email === 'direction@frere-mahjoub.tn');
+    const autre = state.users.find((u) => u.email === 'walid@frere-mahjoub.tn');
+    for (const [u, nom] of [[moi, 'Mahjoub Direction'], [autre, 'Walid Kammoun']]) {
+      const r = await call('POST', '/ops/upsert', { args: ['users', { ...u, name: nom, password: '' }] }, T.admin);
+      assert.equal(r.status, 200, JSON.stringify(r.body));
+    }
+    const { state: s2 } = await app.engine.current();
+    assert.equal(s2.users.find((u) => u.id === autre.id).name, 'Walid Kammoun');
+    const r = await call('POST', '/ops/upsert', { args: ['users', { ...autre, name: 'Pirate', password: '' }] }, T.employe);
+    assert.equal(r.status, 403);
+  });
+});
+
 describe('Factures (une par vente)', () => {
   it('API : liste, « à voir » avec motif, annulation qui annule la vente, refus ensuite', async () => {
     const { state: s0 } = await app.engine.current();
