@@ -923,8 +923,8 @@ describe('Modèles et contrôleurs par entité (API REST)', () => {
   });
 
   it('produits : créer, chercher, modifier, détail du stock, supprimer', async () => {
-    const r = await ok(post('/products', { data: { reference: 'PDT-REST', name: 'فلفل', category: 'خضروات', unit: 'kg', salePrice: 3.2, alertThreshold: 50, active: true } }));
-    const p = (r.collections?.products || r.state.products).find((x) => x.name === 'فلفل');
+    const r = await ok(post('/products', { data: { reference: 'PDT-REST', name: 'فلفل أحمر', category: 'خضروات', unit: 'kg', salePrice: 3.2, alertThreshold: 50, active: true } }));
+    const p = (r.collections?.products || r.state.products).find((x) => x.name === 'فلفل أحمر');
     assert.ok(p);
     assert.match(p.reference, /^PDT-\d{3}$/, 'référence envoyée ignorée, attribuée automatiquement');
     assert.equal((await ok(get(`/products?q=${p.reference.toLowerCase()}`))).total, 1);

@@ -1814,6 +1814,134 @@ function buildSeed() {
   return s;
 }
 
+// ../frere-flow/src/services/catalogue.ts
+var sansAccents = (v) => v.normalize("NFD").replace(/[̀-ͯ]/g, "");
+function normaliserNom(v) {
+  return sansAccents(String(v ?? "")).normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase().replace(/[أإآ]/g, "\u0627").replace(/ة/g, "\u0647").replace(/ى/g, "\u064A").replace(/ـ/g, "");
+}
+var ALIAS_TYPE = {
+  \u062E\u0636\u0631\u0648\u0627\u062A: "\u062E\u0636\u0631\u0648\u0627\u062A",
+  \u062E\u0636\u0631: "\u062E\u0636\u0631\u0648\u0627\u062A",
+  \u062E\u0636\u0627\u0631: "\u062E\u0636\u0631\u0648\u0627\u062A",
+  legume: "\u062E\u0636\u0631\u0648\u0627\u062A",
+  legumes: "\u062E\u0636\u0631\u0648\u0627\u062A",
+  vegetable: "\u062E\u0636\u0631\u0648\u0627\u062A",
+  \u0641\u0648\u0627\u0643\u0647: "\u0641\u0648\u0627\u0643\u0647",
+  \u063A\u0644\u0627\u0644: "\u0641\u0648\u0627\u0643\u0647",
+  \u0641\u0627\u0643\u0647\u0647: "\u0641\u0648\u0627\u0643\u0647",
+  fruit: "\u0641\u0648\u0627\u0643\u0647",
+  fruits: "\u0641\u0648\u0627\u0643\u0647"
+};
+function typeProduit(v) {
+  return ALIAS_TYPE[normaliserNom(v)] ?? null;
+}
+var ALIAS_UNITE = {
+  kg: "kg",
+  \u0643\u063A: "kg",
+  kilo: "kg",
+  kilogramme: "kg",
+  \u0642\u0637\u0639\u0647: "\u0642\u0637\u0639\u0629",
+  piece: "\u0642\u0637\u0639\u0629",
+  pieces: "\u0642\u0637\u0639\u0629",
+  pc: "\u0642\u0637\u0639\u0629",
+  \u0637\u0646: "\u0637\u0646",
+  ton: "\u0637\u0646",
+  tonne: "\u0637\u0646",
+  t: "\u0637\u0646",
+  \u0635\u0646\u062F\u0648\u0642: "\u0635\u0646\u062F\u0648\u0642",
+  caisse: "\u0635\u0646\u062F\u0648\u0642",
+  cagette: "\u0635\u0646\u062F\u0648\u0642"
+};
+function uniteProduit(v) {
+  return ALIAS_UNITE[normaliserNom(v)] ?? null;
+}
+var CATALOGUE = [
+  // légumes
+  { ar: "\u0628\u0637\u0627\u0637\u0627", fr: "Pomme de terre", type: "\u062E\u0636\u0631\u0648\u0627\u062A" },
+  { ar: "\u0637\u0645\u0627\u0637\u0645", fr: "Tomate", type: "\u062E\u0636\u0631\u0648\u0627\u062A" },
+  { ar: "\u0628\u0635\u0644", fr: "Oignon", type: "\u062E\u0636\u0631\u0648\u0627\u062A" },
+  { ar: "\u0628\u0635\u0644 \u0623\u062E\u0636\u0631", fr: "Oignon vert", type: "\u062E\u0636\u0631\u0648\u0627\u062A" },
+  { ar: "\u062B\u0648\u0645", fr: "Ail", type: "\u062E\u0636\u0631\u0648\u0627\u062A" },
+  { ar: "\u062C\u0632\u0631", fr: "Carotte", type: "\u062E\u0636\u0631\u0648\u0627\u062A" },
+  { ar: "\u0641\u0644\u0641\u0644", fr: "Piment", type: "\u062E\u0636\u0631\u0648\u0627\u062A" },
+  { ar: "\u0641\u0644\u0641\u0644 \u062D\u0644\u0648", fr: "Poivron", type: "\u062E\u0636\u0631\u0648\u0627\u062A" },
+  { ar: "\u0641\u0644\u0641\u0644 \u062D\u0627\u0631", fr: "Piment fort", type: "\u062E\u0636\u0631\u0648\u0627\u062A" },
+  { ar: "\u0643\u0648\u0633\u0629", fr: "Courgette", type: "\u062E\u0636\u0631\u0648\u0627\u062A" },
+  { ar: "\u0628\u0627\u0630\u0646\u062C\u0627\u0646", fr: "Aubergine", type: "\u062E\u0636\u0631\u0648\u0627\u062A" },
+  { ar: "\u062E\u064A\u0627\u0631", fr: "Concombre", type: "\u062E\u0636\u0631\u0648\u0627\u062A" },
+  { ar: "\u0642\u0631\u0639", fr: "Potiron", type: "\u062E\u0636\u0631\u0648\u0627\u062A" },
+  { ar: "\u0644\u0641\u062A", fr: "Navet", type: "\u062E\u0636\u0631\u0648\u0627\u062A" },
+  { ar: "\u0628\u0646\u062C\u0631", fr: "Betterave", type: "\u062E\u0636\u0631\u0648\u0627\u062A" },
+  { ar: "\u0641\u062C\u0644", fr: "Radis", type: "\u062E\u0636\u0631\u0648\u0627\u062A" },
+  { ar: "\u0643\u0631\u0646\u0628", fr: "Chou", type: "\u062E\u0636\u0631\u0648\u0627\u062A" },
+  { ar: "\u0642\u0646\u0628\u064A\u0637", fr: "Chou-fleur", type: "\u062E\u0636\u0631\u0648\u0627\u062A" },
+  { ar: "\u0628\u0631\u0648\u0643\u0644\u064A", fr: "Brocoli", type: "\u062E\u0636\u0631\u0648\u0627\u062A" },
+  { ar: "\u062E\u0633", fr: "Laitue", type: "\u062E\u0636\u0631\u0648\u0627\u062A" },
+  { ar: "\u0633\u0628\u0627\u0646\u062E", fr: "\xC9pinard", type: "\u062E\u0636\u0631\u0648\u0627\u062A" },
+  { ar: "\u0633\u0644\u0642", fr: "Blette", type: "\u062E\u0636\u0631\u0648\u0627\u062A" },
+  { ar: "\u0628\u0642\u062F\u0648\u0646\u0633", fr: "Persil", type: "\u062E\u0636\u0631\u0648\u0627\u062A" },
+  { ar: "\u0643\u0633\u0628\u0631", fr: "Coriandre", type: "\u062E\u0636\u0631\u0648\u0627\u062A" },
+  { ar: "\u0646\u0639\u0646\u0627\u0639", fr: "Menthe", type: "\u062E\u0636\u0631\u0648\u0627\u062A" },
+  { ar: "\u0643\u0631\u0641\u0633", fr: "C\xE9leri", type: "\u062E\u0636\u0631\u0648\u0627\u062A" },
+  { ar: "\u0628\u0633\u0628\u0627\u0633", fr: "Fenouil", type: "\u062E\u0636\u0631\u0648\u0627\u062A" },
+  { ar: "\u0642\u0646\u0627\u0631\u064A\u0629", fr: "Artichaut", type: "\u062E\u0636\u0631\u0648\u0627\u062A" },
+  { ar: "\u0641\u0648\u0644 \u0623\u062E\u0636\u0631", fr: "F\xE8ve", type: "\u062E\u0636\u0631\u0648\u0627\u062A" },
+  { ar: "\u062C\u0644\u0628\u0627\u0646\u0629", fr: "Petit pois", type: "\u062E\u0636\u0631\u0648\u0627\u062A" },
+  { ar: "\u0644\u0648\u0628\u064A\u0627", fr: "Haricot vert", type: "\u062E\u0636\u0631\u0648\u0627\u062A" },
+  { ar: "\u0628\u0627\u0645\u064A\u0629", fr: "Gombo", type: "\u062E\u0636\u0631\u0648\u0627\u062A" },
+  { ar: "\u0628\u0637\u0627\u0637\u0627 \u062D\u0644\u0648\u0629", fr: "Patate douce", type: "\u062E\u0636\u0631\u0648\u0627\u062A" },
+  { ar: "\u0641\u0637\u0631", fr: "Champignon", type: "\u062E\u0636\u0631\u0648\u0627\u062A" },
+  { ar: "\u0630\u0631\u0629", fr: "Ma\xEFs", type: "\u062E\u0636\u0631\u0648\u0627\u062A" },
+  { ar: "\u0643\u0631\u0627\u062B", fr: "Poireau", type: "\u062E\u0636\u0631\u0648\u0627\u062A" },
+  // fruits
+  { ar: "\u062A\u0641\u0627\u062D", fr: "Pomme", type: "\u0641\u0648\u0627\u0643\u0647" },
+  { ar: "\u0628\u0631\u062A\u0642\u0627\u0644", fr: "Orange", type: "\u0641\u0648\u0627\u0643\u0647" },
+  { ar: "\u0628\u0631\u062A\u0642\u0627\u0644 \u0645\u0627\u0644\u0637\u064A", fr: "Orange maltaise", type: "\u0641\u0648\u0627\u0643\u0647" },
+  { ar: "\u0645\u0646\u062F\u0631\u064A\u0646", fr: "Mandarine", type: "\u0641\u0648\u0627\u0643\u0647" },
+  { ar: "\u0643\u0644\u064A\u0645\u0646\u062A\u064A\u0646", fr: "Cl\xE9mentine", type: "\u0641\u0648\u0627\u0643\u0647" },
+  { ar: "\u0644\u064A\u0645\u0648\u0646", fr: "Citron", type: "\u0641\u0648\u0627\u0643\u0647" },
+  { ar: "\u0642\u0627\u0631\u0635", fr: "Citron (bergamote)", type: "\u0641\u0648\u0627\u0643\u0647" },
+  { ar: "\u0645\u0648\u0632", fr: "Banane", type: "\u0641\u0648\u0627\u0643\u0647" },
+  { ar: "\u0625\u062C\u0627\u0635", fr: "Poire", type: "\u0641\u0648\u0627\u0643\u0647" },
+  { ar: "\u0639\u0646\u0628", fr: "Raisin", type: "\u0641\u0648\u0627\u0643\u0647" },
+  { ar: "\u0641\u0631\u0627\u0648\u0644\u0629", fr: "Fraise", type: "\u0641\u0648\u0627\u0643\u0647" },
+  { ar: "\u062F\u0644\u0627\u0639", fr: "Past\xE8que", type: "\u0641\u0648\u0627\u0643\u0647" },
+  { ar: "\u0628\u0637\u064A\u062E", fr: "Melon", type: "\u0641\u0648\u0627\u0643\u0647" },
+  { ar: "\u062E\u0648\u062E", fr: "P\xEAche", type: "\u0641\u0648\u0627\u0643\u0647" },
+  { ar: "\u0645\u0634\u0645\u0634", fr: "Abricot", type: "\u0641\u0648\u0627\u0643\u0647" },
+  { ar: "\u0628\u0631\u0642\u0648\u0642", fr: "Prune", type: "\u0641\u0648\u0627\u0643\u0647" },
+  { ar: "\u062A\u064A\u0646", fr: "Figue", type: "\u0641\u0648\u0627\u0643\u0647" },
+  { ar: "\u0647\u0646\u062F\u064A", fr: "Figue de Barbarie", type: "\u0641\u0648\u0627\u0643\u0647" },
+  { ar: "\u0631\u0645\u0627\u0646", fr: "Grenade", type: "\u0641\u0648\u0627\u0643\u0647" },
+  { ar: "\u062A\u0645\u0631", fr: "Datte", type: "\u0641\u0648\u0627\u0643\u0647" },
+  { ar: "\u0643\u064A\u0648\u064A", fr: "Kiwi", type: "\u0641\u0648\u0627\u0643\u0647" },
+  { ar: "\u0623\u0646\u0627\u0646\u0627\u0633", fr: "Ananas", type: "\u0641\u0648\u0627\u0643\u0647" },
+  { ar: "\u0645\u0627\u0646\u062C\u0648", fr: "Mangue", type: "\u0641\u0648\u0627\u0643\u0647" },
+  { ar: "\u0632\u0639\u0631\u0648\u0631", fr: "N\xE8fle", type: "\u0641\u0648\u0627\u0643\u0647" },
+  { ar: "\u0633\u0641\u0631\u062C\u0644", fr: "Coing", type: "\u0641\u0648\u0627\u0643\u0647" },
+  { ar: "\u0643\u0627\u0643\u064A", fr: "Kaki", type: "\u0641\u0648\u0627\u0643\u0647" },
+  { ar: "\u062D\u0628 \u0627\u0644\u0645\u0644\u0648\u0643", fr: "Cerise", type: "\u0641\u0648\u0627\u0643\u0647" },
+  { ar: "\u062A\u0648\u062A", fr: "M\xFBre", type: "\u0641\u0648\u0627\u0643\u0647" },
+  { ar: "\u0623\u0641\u0648\u0643\u0627\u062F\u0648", fr: "Avocat", type: "\u0641\u0648\u0627\u0643\u0647" }
+];
+function dansCatalogue(nom) {
+  const n = normaliserNom(nom);
+  return n ? CATALOGUE.find((c) => normaliserNom(c.ar) === n || normaliserNom(c.fr) === n) : void 0;
+}
+function normaliserProduits(s) {
+  let n = 0;
+  for (const p of s.products) {
+    const category = typeProduit(p.category) ?? dansCatalogue(p.name)?.type ?? "\u062E\u0636\u0631\u0648\u0627\u062A";
+    const unit = uniteProduit(p.unit) ?? "kg";
+    if (category !== p.category || unit !== p.unit) {
+      p.category = category;
+      p.unit = unit;
+      n++;
+    }
+  }
+  return n;
+}
+
 // ../frere-flow/src/services/validation.ts
 var V = {
   name: "\u0627\u0644\u0627\u0633\u0645 \u063A\u064A\u0631 \u0635\u062D\u064A\u062D: \u0645\u0646 2 \u0625\u0644\u0649 80 \u062D\u0631\u0641\u0627\u064B\u060C \u0645\u062B\u0627\u0644: \u0623\u062D\u0645\u062F \u0628\u0646 \u0635\u0627\u0644\u062D",
@@ -1845,8 +1973,9 @@ var V = {
   reminderDays: "\u0623\u064A\u0627\u0645 \u0627\u0644\u062A\u0630\u0643\u064A\u0631 \u063A\u064A\u0631 \u0635\u062D\u064A\u062D\u0629: \u0645\u0646 0 \u0625\u0644\u0649 365\u060C \u0645\u062B\u0627\u0644: 3",
   password: "\u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631 \u0636\u0639\u064A\u0641\u0629: 8 \u0623\u062D\u0631\u0641 \u0639\u0644\u0649 \u0627\u0644\u0623\u0642\u0644 \u0645\u0639 \u062D\u0631\u0648\u0641 \u0648\u0623\u0631\u0642\u0627\u0645\u060C \u0645\u062B\u0627\u0644: Ferme2026",
   passwordRequired: "\u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631 \u0645\u0637\u0644\u0648\u0628\u0629",
-  category: "\u0627\u0644\u0641\u0626\u0629 \u063A\u064A\u0631 \u0635\u062D\u064A\u062D\u0629: \u0645\u0646 2 \u0625\u0644\u0649 40 \u062D\u0631\u0641\u0627\u064B\u060C \u0645\u062B\u0627\u0644: \u062E\u0636\u0631\u0648\u0627\u062A",
-  unit: "\u0627\u0644\u0648\u062D\u062F\u0629 \u063A\u064A\u0631 \u0635\u062D\u064A\u062D\u0629\u060C \u0645\u062B\u0627\u0644: kg",
+  category: "\u0646\u0648\u0639 \u0627\u0644\u0645\u0646\u062A\u062C \u063A\u064A\u0631 \u0635\u062D\u064A\u062D: \u062E\u0636\u0631\u0648\u0627\u062A \u0623\u0648 \u0641\u0648\u0627\u0643\u0647",
+  unit: "\u0648\u062D\u062F\u0629 \u0627\u0644\u0628\u064A\u0639 \u063A\u064A\u0631 \u0635\u062D\u064A\u062D\u0629: kg \u0623\u0648 \u0642\u0637\u0639\u0629 \u0623\u0648 \u0637\u0646 \u0623\u0648 \u0635\u0646\u062F\u0648\u0642",
+  nameUsed: "\u064A\u0648\u062C\u062F \u0645\u0646\u062A\u062C \u0628\u0646\u0641\u0633 \u0627\u0644\u0627\u0633\u0645 \u0648\u0645\u0627 \u0632\u0627\u0644 \u0641\u064A \u0627\u0644\u0645\u062E\u0632\u0648\u0646: \u0639\u062F\u0651\u0644 \u0627\u0644\u0645\u0646\u062A\u062C \u0627\u0644\u0645\u0648\u062C\u0648\u062F \u0628\u062F\u0644 \u0625\u0646\u0634\u0627\u0621 \u0645\u0646\u062A\u062C \u062C\u062F\u064A\u062F",
   color: "\u0627\u0633\u0645 \u0627\u0644\u0644\u0648\u0646 \u063A\u064A\u0631 \u0635\u062D\u064A\u062D\u060C \u0645\u062B\u0627\u0644: \u0623\u062D\u0645\u0631",
   hex: "\u0631\u0645\u0632 \u0627\u0644\u0644\u0648\u0646 \u063A\u064A\u0631 \u0635\u062D\u064A\u062D\u060C \u0645\u062B\u0627\u0644: #2E7D32",
   description: "\u0627\u0644\u0648\u0635\u0641 \u0645\u0637\u0644\u0648\u0628: \u0645\u0646 3 \u0625\u0644\u0649 200 \u062D\u0631\u0641\u060C \u0645\u062B\u0627\u0644: \u0648\u0642\u0648\u062F \u0627\u0644\u0634\u0627\u062D\u0646\u0629",
@@ -2009,6 +2138,12 @@ function client(s, item) {
     ...item["marketId"] || old?.["marketId"] ? { marketId: ref(s, "markets", item["marketId"] ?? old?.["marketId"]) } : {}
   });
 }
+function memeNom(s, p) {
+  const noms = [p.name, p.nameAlt].map(normaliserNom).filter(Boolean);
+  return s.products.find(
+    (x) => x.id !== p.id && [x.name, x.nameAlt].map(normaliserNom).some((n) => n && noms.includes(n))
+  );
+}
 function product(s, item) {
   const old = existing(s, "products", item);
   const others = s.products.filter((x) => x.id !== item["id"]).map((x) => x.reference.toUpperCase());
@@ -2017,13 +2152,16 @@ function product(s, item) {
     "PDT-",
     3
   );
-  const unit = text(item["unit"] || "kg", { max: 10, msg: V.unit });
-  if (!/^[\p{L}.]{1,10}$/u.test(unit)) fail(V.unit);
+  const unit = uniteProduit(item["unit"] || "kg") ?? fail(V.unit);
+  const name = personName(item["name"]);
+  const nameAlt = nomAlt(item["nameAlt"]);
+  if (memeNom(s, { id: item["id"], name, nameAlt })) fail(V.nameUsed);
   return withId(item, {
     reference: r,
-    name: personName(item["name"]),
-    nameAlt: nomAlt(item["nameAlt"]),
-    category: personName(item["category"], 40, V.category),
+    name,
+    nameAlt,
+    // type donné : doit être « خضروات » ou « فواكه » ; type vide : d'après le catalogue
+    category: item["category"] ? typeProduit(item["category"]) ?? fail(V.category) : dansCatalogue(name)?.type ?? fail(V.category),
     unit,
     salePrice: num(item["salePrice"], V.price, { min: 0, minExclusive: true, max: 1e5 }),
     alertThreshold: num(item["alertThreshold"] ?? 0, V.threshold, {
@@ -2268,7 +2406,19 @@ var RULES = {
   },
   // produit + (facultatif) quantité entrée dans un frigo actif
   saveProduct: (s, [item, st]) => {
-    const p = product(s, obj(item));
+    let it = obj(item);
+    if (!it["id"]) {
+      const meme = memeNom(s, {
+        id: void 0,
+        name: String(it["name"] ?? ""),
+        nameAlt: String(it["nameAlt"] ?? "")
+      });
+      if (meme) {
+        if (stockTotal(s, meme.id) > 0) fail(V.nameUsed);
+        it = { ...it, id: meme.id, active: true };
+      }
+    }
+    const p = product(s, it);
     if (st === null || st === void 0) return [p, null];
     const x = obj(st);
     if (x["quantity"] === void 0 || x["quantity"] === null || x["quantity"] === "" || x["quantity"] === 0)
@@ -2455,6 +2605,7 @@ export {
   isMarketClient2 as isMarketClient,
   isMarketCredit2 as isMarketCredit,
   isReadOnly2 as isReadOnly,
+  normaliserProduits,
   packBalance,
   stockOf2 as stockOf,
   stockTotal,

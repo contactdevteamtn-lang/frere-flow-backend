@@ -1,6 +1,6 @@
 // Moteur : exécute les opérations métier du front (src/domain) sur l'état enregistré,
 // après contrôle de la session, des permissions et de l'équipe (Figo), puis enregistre le résultat.
-import { OPS, BusinessError, buildSeed, validateOp, validateSettings, isMarketCredit, isMarketClient, isReadOnly, creerFacturesManquantes, MARKET_ROLE, READONLY_ROLE, CLIENT_BOX_TYPE, STABLE_USER_IDS } from '../domain/domain.mjs';
+import { OPS, BusinessError, buildSeed, validateOp, validateSettings, isMarketCredit, isMarketClient, isReadOnly, creerFacturesManquantes, normaliserProduits, MARKET_ROLE, READONLY_ROLE, CLIENT_BOX_TYPE, STABLE_USER_IDS } from '../domain/domain.mjs';
 import { ConflictError, diff, toStored } from '../db/common.js';
 import { MANAGE_PERMISSION } from '../models/index.js';
 import { hashPassword, isHash } from './auth.js';
@@ -263,6 +263,8 @@ export function migrer(state) {
   if (!s.packagingTypes.some((t) => t.clientOwned)) { s.packagingTypes.push({ ...CLIENT_BOX_TYPE }); change = true; }
   // factures : une par vente (bases créées avant la section Factures)
   if (creerFacturesManquantes(s) > 0) change = true;
+  // produits : type (خضروات / فواكه) et unité de vente (kg, قطعة, طن, صندوق) ramenés aux valeurs permises
+  if (normaliserProduits(s) > 0) change = true;
   // comptes stables « marché » et « consultation » (une seule fois : supprimés ensuite = pas recréés)
   if (!s.auditLogs.some((l) => l.action === ACTION_STABLES)) {
     const modele = buildSeed().users.filter((u) => STABLE_USER_IDS.includes(u.id) && u.id !== 'u_super');

@@ -22,6 +22,7 @@ export const stockOf = ops.stockOf;
 export const { isMarketCredit, isMarketClient, isReadOnly, clientBoxTypeIds, creerFacturesManquantes, invoiceOfSale } = ops;
 export { SUPER_PERMS, MARKET_ROLE, READONLY_ROLE, CLIENT_BOX_TYPE, STABLE_USER_IDS };
 export { buildSeed, ALL_PERMS, validateOp, validateSettings, V };
+export { normaliserProduits } from "@/services/catalogue";
 
 // Calculs de lecture utilisés par les contrôleurs (mêmes résultats que les pages du site)
 export { stockTotal, packBalance, clientBoxBalance, effectiveCreditCode } from "@/services/ops";
