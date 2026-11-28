@@ -24,6 +24,7 @@ __export(ops_exports, {
   creerFacturesManquantes: () => creerFacturesManquantes,
   editSale: () => editSale,
   effectiveCreditCode: () => effectiveCreditCode,
+  equipeDuFrigo: () => equipeDuFrigo,
   invoiceOfSale: () => invoiceOfSale,
   isClientBoxType: () => isClientBoxType,
   isMarketClient: () => isMarketClient,
@@ -116,12 +117,31 @@ function effectiveCreditCode(s, c, today) {
   if ((code2 === "ACTIVE" || code2 === "PARTIAL") && c.dueDate < today.slice(0, 10)) return "OVERDUE";
   return code2;
 }
+function equipeDuFrigo(s, frigoId) {
+  const frigo2 = s.frigos.find((x) => x.id === frigoId);
+  const n = (v) => (v ?? "").trim().toLowerCase();
+  const meme = s.teams.find(
+    (t) => t.active && frigo2 && (n(t.name) && n(t.name) === n(frigo2.name) || n(t.nameAlt) && n(t.nameAlt) === n(frigo2.nameAlt))
+  );
+  const rang = s.teams[s.frigos.findIndex((x) => x.id === frigoId)];
+  return (meme ?? (rang?.active ? rang : void 0) ?? s.teams.find((t) => t.active))?.id ?? "";
+}
 function createSale(prev, inp, userId, date) {
   const frigoDe = (i) => i.frigoId || inp.frigoId;
+  const equipe = (frigoId) => inp.teamId || equipeDuFrigo(prev, frigoId);
   const lignes = inp.items.filter((i) => i.productId && i.quantity > 0);
   const frigos = [...new Set(lignes.map(frigoDe))];
   if (inp.marketTripId || frigos.length <= 1)
-    return creerVenteUnFrigo(prev, { ...inp, frigoId: frigos[0] ?? inp.frigoId }, userId, date);
+    return creerVenteUnFrigo(
+      prev,
+      {
+        ...inp,
+        frigoId: frigos[0] ?? inp.frigoId,
+        teamId: inp.marketTripId ? inp.teamId : equipe(frigos[0] ?? inp.frigoId)
+      },
+      userId,
+      date
+    );
   const totaux = frigos.map(
     (f) => lignes.filter((i) => frigoDe(i) === f).reduce((a, i) => a + i.quantity * i.unitPrice, 0)
   );
@@ -137,6 +157,7 @@ function createSale(prev, inp, userId, date) {
       {
         ...inp,
         frigoId: f,
+        teamId: equipe(f),
         items: lignes.filter((i) => frigoDe(i) === f),
         paid: part,
         packaging: k === 0 ? inp.packaging : []
@@ -151,7 +172,7 @@ function creerVenteUnFrigo(prev, inp, userId, date) {
   const s = structuredClone(prev);
   const items = inp.items.filter((i) => i.productId && i.quantity > 0);
   if (!inp.clientId || !inp.teamId || !inp.frigoId)
-    throw new BusinessError("\u0627\u0644\u0639\u0645\u064A\u0644 \u0648\u0641\u0631\u064A\u0642 \u0641\u064A\u063A\u0648 \u0648\u063A\u0631\u0641\u0629 \u0627\u0644\u062A\u0628\u0631\u064A\u062F \u0645\u0637\u0644\u0648\u0628\u0629");
+    throw new BusinessError("\u0627\u0644\u0639\u0645\u064A\u0644 \u0648\u063A\u0631\u0641\u0629 \u0627\u0644\u062A\u0628\u0631\u064A\u062F \u0648\u063A\u0631\u0641\u0629 \u0627\u0644\u062A\u0628\u0631\u064A\u062F \u0645\u0637\u0644\u0648\u0628\u0629");
   if (!items.length) throw new BusinessError("\u0623\u0636\u0641 \u0645\u0646\u062A\u062C\u0627\u064B \u0648\u0627\u062D\u062F\u0627\u064B \u0639\u0644\u0649 \u0627\u0644\u0623\u0642\u0644");
   if (!inp.marketTripId && isMarketClient(s, inp.clientId))
     throw new BusinessError("\u0647\u0630\u0627 \u0627\u0644\u0639\u0645\u064A\u0644 \u062A\u0627\u0628\u0639 \u0644\u0633\u0648\u0642: \u0633\u062C\u0651\u0644 \u0627\u0644\u0628\u064A\u0639 \u0645\u0646 \u0642\u0633\u0645 \u0627\u0644\u0623\u0633\u0648\u0627\u0642");
@@ -606,7 +627,7 @@ function addManualCredit(prev, inp, userId, date) {
 function manualCredit(prev, inp, userId, date) {
   const s = structuredClone(prev);
   if (!inp.clientId || !inp.teamId || !(inp.amount > 0))
-    throw new BusinessError("\u0627\u0644\u0639\u0645\u064A\u0644 \u0648\u0641\u0631\u064A\u0642 \u0641\u064A\u063A\u0648 \u0648\u0627\u0644\u0645\u0628\u0644\u063A \u0645\u0637\u0644\u0648\u0628\u0629");
+    throw new BusinessError("\u0627\u0644\u0639\u0645\u064A\u0644 \u0648\u063A\u0631\u0641\u0629 \u0627\u0644\u062A\u0628\u0631\u064A\u062F \u0648\u0627\u0644\u0645\u0628\u0644\u063A \u0645\u0637\u0644\u0648\u0628\u0629");
   const id = nextId(s, "cr");
   s.credits.unshift({
     id,
@@ -734,7 +755,7 @@ var cashBalance = (s, teamId) => round(
 );
 function addCash(prev, inp, userId, date) {
   const s = structuredClone(prev);
-  if (!inp.teamId || !(inp.amount > 0)) throw new BusinessError("\u0641\u0631\u064A\u0642 \u0641\u064A\u063A\u0648 \u0648\u0627\u0644\u0645\u0628\u0644\u063A \u0645\u0637\u0644\u0648\u0628\u0627\u0646");
+  if (!inp.teamId || !(inp.amount > 0)) throw new BusinessError("\u063A\u0631\u0641\u0629 \u0627\u0644\u062A\u0628\u0631\u064A\u062F \u0648\u0627\u0644\u0645\u0628\u0644\u063A \u0645\u0637\u0644\u0648\u0628\u0627\u0646");
   if (inp.type === "DECAISSEMENT") {
     const solde = cashBalance(s, inp.teamId);
     if (inp.amount > solde + 1e-9)
@@ -763,7 +784,7 @@ var LABEL = {
   products: "\u0627\u0644\u0645\u0646\u062A\u062C",
   frigos: "\u063A\u0631\u0641\u0629 \u0627\u0644\u062A\u0628\u0631\u064A\u062F",
   packagingTypes: "\u0646\u0648\u0639 \u0627\u0644\u0635\u0646\u062F\u0648\u0642",
-  teams: "\u0641\u064A\u063A\u0648",
+  teams: "\u063A\u0631\u0641\u0629 \u0627\u0644\u062A\u0628\u0631\u064A\u062F",
   users: "\u0627\u0644\u0645\u0633\u062A\u062E\u062F\u0645",
   roles: "\u0627\u0644\u062F\u0648\u0631"
 };
@@ -948,7 +969,7 @@ function createMarketTrip(prev, inp, userId, date) {
     });
   }
   if (!s.markets.some((m) => m.id === marketId && m.active) || !s.teams.some((t) => t.id === inp.teamId && t.active))
-    throw new BusinessError("\u0627\u0644\u0633\u0648\u0642 \u0648\u0641\u0631\u064A\u0642 \u0641\u064A\u063A\u0648 \u0645\u0637\u0644\u0648\u0628\u0627\u0646");
+    throw new BusinessError("\u0627\u0644\u0633\u0648\u0642 \u0648\u063A\u0631\u0641\u0629 \u0627\u0644\u062A\u0628\u0631\u064A\u062F \u0645\u0637\u0644\u0648\u0628\u0627\u0646");
   const loads = inp.loads.filter((l) => l.productId && l.frigoId && l.quantity > 0);
   if (!loads.length) throw new BusinessError("\u0623\u0636\u0641 \u0645\u0646\u062A\u062C\u0627\u064B \u0648\u0627\u062D\u062F\u0627\u064B \u0639\u0644\u0649 \u0627\u0644\u0623\u0642\u0644");
   const need = /* @__PURE__ */ new Map();
@@ -1169,7 +1190,7 @@ function createDeadline(prev, inp, userId, date) {
   const client2 = prev.clients.find((x) => x.id === inp.clientId && x.active);
   if (!client2) throw new BusinessError("\u0627\u0644\u0639\u0645\u064A\u0644 \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F");
   if (!prev.teams.some((x) => x.id === inp.teamId && x.active))
-    throw new BusinessError("\u0641\u0631\u064A\u0642 \u0641\u064A\u063A\u0648 \u0648\u0627\u0644\u0645\u0628\u0644\u063A \u0645\u0637\u0644\u0648\u0628\u0627\u0646");
+    throw new BusinessError("\u063A\u0631\u0641\u0629 \u0627\u0644\u062A\u0628\u0631\u064A\u062F \u0648\u0627\u0644\u0645\u0628\u0644\u063A \u0645\u0637\u0644\u0648\u0628\u0627\u0646");
   if (!Number.isFinite(inp.amount) || round3(inp.amount) <= 0)
     throw new BusinessError("\u0627\u0644\u0645\u0628\u0644\u063A \u063A\u064A\u0631 \u0635\u0627\u0644\u062D");
   if (!!inp.frigoId === !!inp.marketId) throw new BusinessError("\u0627\u062E\u062A\u0631 \u063A\u0631\u0641\u0629 \u062A\u0628\u0631\u064A\u062F \u0623\u0648 \u0633\u0648\u0642\u0627\u064B");
@@ -1641,17 +1662,19 @@ function buildSeed() {
     teams: [
       {
         id: "team_1",
-        name: "\u0641\u064A\u063A\u0648 1",
-        code: "F1",
-        description: "\u0627\u0644\u0641\u0631\u064A\u0642 \u0627\u0644\u062A\u062C\u0627\u0631\u064A \u0627\u0644\u0623\u0648\u0644",
+        name: "\u063A\u0631\u0641\u0629 \u062A\u0628\u0631\u064A\u062F \u0641\u0648\u0632\u064A",
+        nameAlt: "Frigo Fawzi",
+        code: "FAWZI",
+        description: "\u0641\u0631\u064A\u0642 \u063A\u0631\u0641\u0629 \u062A\u0628\u0631\u064A\u062F \u0641\u0648\u0632\u064A",
         responsable: "\u0648\u0644\u064A\u062F \u0643\u0645\u0648\u0646",
         active: true
       },
       {
         id: "team_2",
-        name: "\u0641\u064A\u063A\u0648 2",
-        code: "F2",
-        description: "\u0627\u0644\u0641\u0631\u064A\u0642 \u0627\u0644\u062A\u062C\u0627\u0631\u064A \u0627\u0644\u062B\u0627\u0646\u064A",
+        name: "\u063A\u0631\u0641\u0629 \u062A\u0628\u0631\u064A\u062F \u062D\u0633\u0627\u0645",
+        nameAlt: "Frigo Houssem",
+        code: "HOUSSEM",
+        description: "\u0641\u0631\u064A\u0642 \u063A\u0631\u0641\u0629 \u062A\u0628\u0631\u064A\u062F \u062D\u0633\u0627\u0645",
         responsable: "\u0631\u064A\u0627\u0636 \u0634\u0639\u0628\u0627\u0646",
         active: true
       }
@@ -2454,7 +2477,8 @@ var RULES = {
     return [
       {
         clientId: ref(s, "clients", x["clientId"], { active: true }),
-        teamId: ref(s, "teams", x["teamId"], { active: true }),
+        // équipe facultative : sinon celle du frigo de chaque facture (voir createSale)
+        teamId: x["teamId"] ? ref(s, "teams", x["teamId"], { active: true }) : "",
         frigoId: ref(s, "frigos", x["frigoId"], { active: true }),
         items: saleItems(s, x["items"]),
         paid: paid(x["paid"]),
@@ -2743,7 +2767,7 @@ var OPS = {
 };
 var BusinessError2 = BusinessError;
 var stockOf2 = stockOf;
-var { isMarketCredit: isMarketCredit2, isMarketClient: isMarketClient2, isReadOnly: isReadOnly2, clientBoxTypeIds: clientBoxTypeIds2, creerFacturesManquantes: creerFacturesManquantes2, invoiceOfSale: invoiceOfSale2 } = ops_exports;
+var { isMarketCredit: isMarketCredit2, isMarketClient: isMarketClient2, isReadOnly: isReadOnly2, clientBoxTypeIds: clientBoxTypeIds2, creerFacturesManquantes: creerFacturesManquantes2, invoiceOfSale: invoiceOfSale2, equipeDuFrigo: equipeDuFrigo2 } = ops_exports;
 export {
   ALL_PERMS,
   BusinessError2 as BusinessError,
@@ -2759,6 +2783,7 @@ export {
   clientBoxTypeIds2 as clientBoxTypeIds,
   creerFacturesManquantes2 as creerFacturesManquantes,
   effectiveCreditCode,
+  equipeDuFrigo2 as equipeDuFrigo,
   invoiceOfSale2 as invoiceOfSale,
   isMarketClient2 as isMarketClient,
   isMarketCredit2 as isMarketCredit,

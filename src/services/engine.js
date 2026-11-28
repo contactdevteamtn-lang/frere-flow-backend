@@ -1,6 +1,6 @@
 // Moteur : exécute les opérations métier du front (src/domain) sur l'état enregistré,
 // après contrôle de la session, des permissions et de l'équipe (Figo), puis enregistre le résultat.
-import { OPS, BusinessError, buildSeed, validateOp, validateSettings, isMarketCredit, isMarketClient, isReadOnly, creerFacturesManquantes, normaliserProduits, MARKET_ROLE, READONLY_ROLE, CLIENT_BOX_TYPE, STABLE_USER_IDS } from '../domain/domain.mjs';
+import { OPS, BusinessError, buildSeed, validateOp, validateSettings, isMarketCredit, isMarketClient, isReadOnly, creerFacturesManquantes, normaliserProduits, equipeDuFrigo, MARKET_ROLE, READONLY_ROLE, CLIENT_BOX_TYPE, STABLE_USER_IDS } from '../domain/domain.mjs';
 import { ConflictError, diff, toStored } from '../db/common.js';
 import { MANAGE_PERMISSION } from '../models/index.js';
 import { hashPassword, isHash } from './auth.js';
@@ -79,7 +79,9 @@ function teamsTouched(state, name, args) {
   const a = args[0];
   const byId = (list, id) => state[list].find((x) => x.id === id)?.teamId;
   switch (name) {
-    case 'createSale': case 'addManualCredit': case 'addPackMovement': case 'addCash': case 'createDeadline': case 'createMarketTrip':
+    // vente sans équipe choisie : équipes des frigos de ses lignes (un employé ne vend que pour la sienne)
+    case 'createSale': return a?.teamId ? [a.teamId] : [...new Set((a?.items ?? []).map((i) => equipeDuFrigo(state, i.frigoId || a.frigoId)))];
+    case 'addManualCredit': case 'addPackMovement': case 'addCash': case 'createDeadline': case 'createMarketTrip':
       return [a?.teamId];
     case 'cancelSale': case 'setSaleStatus': case 'editSale': return [byId('sales', a)];
     case 'setInvoiceStatus': return [byId('invoices', a)];
