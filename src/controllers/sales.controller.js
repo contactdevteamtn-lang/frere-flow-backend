@@ -2,12 +2,13 @@
 //   POST /api/sales                 créer une vente (stock, paiement, caisse, dette, caisses)   droit « ventes »
 //   POST /api/sales/:id/annuler     { reason }      annuler (stock remis, remboursement)
 //   POST /api/sales/:id/statut      { statusId }    changer le statut
+//   POST /api/sales/:id/modifier    { items, notes } modifier la vente / facture (tout est recalculé)
 import { Sale } from '../models/index.js';
 import { controleurEntite, operer, donnees } from './base.js';
 
 export const salesController = (ctx) => controleurEntite(ctx, {
   nom: 'sales', chemin: 'sales', model: Sale,
-  operations: ['createSale', 'cancelSale', 'setSaleStatus'],
+  operations: ['createSale', 'cancelSale', 'setSaleStatus', 'editSale'],
   details: (v, s) => ({
     lignes: v.saleItems.filter((i) => i.saleId === s.id),
     paiements: v.payments.filter((p) => p.saleId === s.id),
@@ -17,6 +18,8 @@ export const salesController = (ctx) => controleurEntite(ctx, {
   routes: {
     'POST /api/sales': (req, body) => operer(ctx, req, body, 'createSale', [donnees(body)]),
     'POST /api/sales/:id/annuler': (req, body, url, p) => operer(ctx, req, body, 'cancelSale', [p.id, String(body?.reason ?? '')]),
+    // modification complète (lignes, quantités, prix) : stock, crédit, remboursement et facture recalculés
+    'POST /api/sales/:id/modifier': (req, body, url, p) => operer(ctx, req, body, 'editSale', [p.id, donnees(body)]),
     'POST /api/sales/:id/statut': (req, body, url, p) => operer(ctx, req, body, 'setSaleStatus', [p.id, String(body?.statusId ?? '')]),
   },
 });

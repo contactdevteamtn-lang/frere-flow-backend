@@ -44,7 +44,7 @@ export const MSG = {
 
 // Permission(s) du front exigée(s) pour chaque opération (une seule suffit)
 const OP_PERM = {
-  createSale: ['ventes'], cancelSale: ['ventes'], setSaleStatus: ['ventes'],
+  createSale: ['ventes'], cancelSale: ['ventes'], setSaleStatus: ['ventes'], editSale: ['ventes'],
   // expédition (chargement du camion) : direction / admin uniquement ; le rôle « marché » vend et clôture
   createMarketTrip: ['administration'], createMarketSale: ['marches'], closeMarketTrip: ['marches'],
   saveMarket: ['marches'], saveMarketClient: ['marches'],
@@ -81,7 +81,7 @@ function teamsTouched(state, name, args) {
   switch (name) {
     case 'createSale': case 'addManualCredit': case 'addPackMovement': case 'addCash': case 'createDeadline': case 'createMarketTrip':
       return [a?.teamId];
-    case 'cancelSale': case 'setSaleStatus': return [byId('sales', a)];
+    case 'cancelSale': case 'setSaleStatus': case 'editSale': return [byId('sales', a)];
     case 'setInvoiceStatus': return [byId('invoices', a)];
     case 'addCreditPayment': case 'payDeadline': case 'updateDeadline': return [byId('credits', a?.creditId)];
     case 'setCreditStatus': case 'markReminder': case 'cancelDeadline': return [byId('credits', a)];

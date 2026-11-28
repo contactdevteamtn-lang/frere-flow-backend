@@ -8,7 +8,7 @@ import { validateOp, validateSettings, V } from "@/services/validation";
 
 // Les noms doivent être identiques à ceux du registre dans src/store/store.tsx (front)
 export const OPS = {
-  createSale: ops.createSale, cancelSale: ops.cancelSale, setSaleStatus: ops.setSaleStatus, setInvoiceStatus: ops.setInvoiceStatus,
+  createSale: ops.createSale, cancelSale: ops.cancelSale, setSaleStatus: ops.setSaleStatus, setInvoiceStatus: ops.setInvoiceStatus, editSale: ops.editSale,
   addCreditPayment: ops.addCreditPayment, addManualCredit: ops.addManualCredit, setCreditStatus: ops.setCreditStatus,
   addStockMovement: ops.addStockMovement, addPackMovement: ops.addPackMovement, addCash: ops.addCash,
   upsert: ops.upsert, remove: ops.remove, saveProduct: ops.saveProduct,

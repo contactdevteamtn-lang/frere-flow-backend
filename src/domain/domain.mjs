@@ -22,6 +22,7 @@ __export(ops_exports, {
   creditStatusChoices: () => creditStatusChoices,
   creditStatusId: () => creditStatusId,
   creerFacturesManquantes: () => creerFacturesManquantes,
+  editSale: () => editSale,
   effectiveCreditCode: () => effectiveCreditCode,
   invoiceOfSale: () => invoiceOfSale,
   isClientBoxType: () => isClientBoxType,
@@ -116,6 +117,37 @@ function effectiveCreditCode(s, c, today) {
   return code2;
 }
 function createSale(prev, inp, userId, date) {
+  const frigoDe = (i) => i.frigoId || inp.frigoId;
+  const lignes = inp.items.filter((i) => i.productId && i.quantity > 0);
+  const frigos = [...new Set(lignes.map(frigoDe))];
+  if (inp.marketTripId || frigos.length <= 1)
+    return creerVenteUnFrigo(prev, { ...inp, frigoId: frigos[0] ?? inp.frigoId }, userId, date);
+  const totaux = frigos.map(
+    (f) => lignes.filter((i) => frigoDe(i) === f).reduce((a, i) => a + i.quantity * i.unitPrice, 0)
+  );
+  const total = totaux.reduce((a, t) => a + t, 0);
+  const paye = Math.min(Math.max(inp.paid || 0, 0), total);
+  let reste = round(paye);
+  let s = prev;
+  frigos.forEach((f, k) => {
+    const part = k === frigos.length - 1 ? reste : round(total ? paye * totaux[k] / total : 0);
+    reste = round(reste - part);
+    s = creerVenteUnFrigo(
+      s,
+      {
+        ...inp,
+        frigoId: f,
+        items: lignes.filter((i) => frigoDe(i) === f),
+        paid: part,
+        packaging: k === 0 ? inp.packaging : []
+      },
+      userId,
+      date
+    );
+  });
+  return s;
+}
+function creerVenteUnFrigo(prev, inp, userId, date) {
   const s = structuredClone(prev);
   const items = inp.items.filter((i) => i.productId && i.quantity > 0);
   if (!inp.clientId || !inp.teamId || !inp.frigoId)
@@ -244,6 +276,113 @@ function createSale(prev, inp, userId, date) {
     "\u0639\u0645\u0644\u064A\u0629 \u0628\u064A\u0639",
     id,
     `${number} \u2014 \u0627\u0644\u0625\u062C\u0645\u0627\u0644\u064A ${total} TND, \u0627\u0644\u0645\u062F\u0641\u0648\u0639 ${paid2} TND`,
+    date
+  );
+  return s;
+}
+function editSale(prev, saleId, inp, userId, date) {
+  const s = structuredClone(prev);
+  const sale = s.sales.find((x) => x.id === saleId);
+  if (!sale) throw new BusinessError("\u0639\u0645\u0644\u064A\u0629 \u0627\u0644\u0628\u064A\u0639 \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F\u0629");
+  if (sale.saleStatusId === saleStatusId(s, "CANCELLED"))
+    throw new BusinessError("\u0639\u0645\u0644\u064A\u0629 \u0627\u0644\u0628\u064A\u0639 \u0645\u0644\u063A\u0627\u0629");
+  if (sale.marketTripId) throw new BusinessError("\u0645\u0628\u064A\u0639\u0627\u062A \u0627\u0644\u0633\u0648\u0642 \u062A\u064F\u062F\u0627\u0631 \u0645\u0646 \u0642\u0633\u0645 \u0627\u0644\u0623\u0633\u0648\u0627\u0642");
+  const items = inp.items.filter((i) => i.productId && i.quantity > 0);
+  if (!items.length) throw new BusinessError("\u0623\u0636\u0641 \u0645\u0646\u062A\u062C\u0627\u064B \u0648\u0627\u062D\u062F\u0627\u064B \u0639\u0644\u0649 \u0627\u0644\u0623\u0642\u0644");
+  const anciennes = s.saleItems.filter((i) => i.saleId === saleId);
+  const qte = (l, pid) => l.filter((i) => i.productId === pid).reduce((a, i) => a + i.quantity, 0);
+  const produits = new Set([...anciennes, ...items].map((i) => i.productId));
+  for (const pid of produits) {
+    const delta = round(qte(items, pid) - qte(anciennes, pid));
+    if (delta > 0 && stockOf(s, pid, sale.frigoId) < delta) {
+      const p = s.products.find((x) => x.id === pid);
+      throw new BusinessError(
+        `\u0645\u062E\u0632\u0648\u0646 \u063A\u064A\u0631 \u0643\u0627\u0641\u064D \u0644\u0644\u0645\u0646\u062A\u062C ${p?.name} (${stockOf(s, pid, sale.frigoId)} ${p?.unit} \u0645\u062A\u0648\u0641\u0631\u0629 \u0641\u064A \u063A\u0631\u0641\u0629 \u0627\u0644\u062A\u0628\u0631\u064A\u062F)`
+      );
+    }
+    if (delta !== 0)
+      s.stockMovements.unshift({
+        id: nextId(s, "mv"),
+        productId: pid,
+        frigoId: sale.frigoId,
+        quantity: Math.abs(delta),
+        movementType: delta > 0 ? "SORTIE" : "ENTREE",
+        date,
+        userId,
+        reference: sale.number,
+        notes: "\u062A\u0639\u062F\u064A\u0644 \u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629"
+      });
+  }
+  s.saleItems = s.saleItems.filter((i) => i.saleId !== saleId);
+  for (const i of items)
+    s.saleItems.push({
+      id: nextId(s, "si"),
+      saleId,
+      productId: i.productId,
+      quantity: i.quantity,
+      unitPrice: i.unitPrice,
+      total: round(i.quantity * i.unitPrice)
+    });
+  const ancienTotal = sale.totalAmount;
+  const total = round(items.reduce((a, i) => a + i.quantity * i.unitPrice, 0));
+  const p0 = round(s.payments.filter((p) => p.saleId === saleId).reduce((a, p) => a + p.amount, 0));
+  const credit = s.credits.find((c) => c.saleId === saleId);
+  const cp = credit?.paidAmount ?? 0;
+  const dejaPaye = round(p0 + cp);
+  if (total < dejaPaye) {
+    const rembourse = round(dejaPaye - total);
+    s.cash.unshift({
+      id: nextId(s, "cash"),
+      teamId: sale.teamId,
+      userId,
+      type: "DECAISSEMENT",
+      method: "ESPECES",
+      amount: rembourse,
+      reference: sale.number,
+      date,
+      description: "\u0625\u0631\u062C\u0627\u0639 \u0641\u0631\u0642 \u062A\u0639\u062F\u064A\u0644 \u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629"
+    });
+  }
+  sale.totalAmount = total;
+  sale.paidAmount = round(Math.min(dejaPaye, total));
+  sale.remainingAmount = round(total - sale.paidAmount);
+  if (inp.notes !== void 0) sale.notes = inp.notes;
+  if (credit) {
+    credit.totalAmount = round(Math.max(total - p0, cp));
+    credit.remainingAmount = round(credit.totalAmount - credit.paidAmount);
+    credit.creditStatusId = statutCalcule(s, credit);
+  } else if (sale.remainingAmount > 0) {
+    s.credits.unshift({
+      id: nextId(s, "cr"),
+      clientId: sale.clientId,
+      teamId: sale.teamId,
+      saleId,
+      creditStatusId: creditStatusId(s, p0 > 0 ? "PARTIAL" : "ACTIVE"),
+      totalAmount: sale.remainingAmount,
+      paidAmount: 0,
+      remainingAmount: sale.remainingAmount,
+      dueDate: new Date(new Date(date).getTime() + s.settings.defaultDueDays * 864e5).toISOString().slice(0, 10),
+      createdAt: date
+    });
+  }
+  const confirmee = sale.saleStatusId === saleStatusId(s, "CONFIRMED");
+  sale.saleStatusId = saleStatusId(
+    s,
+    sale.remainingAmount === 0 ? "PAID" : sale.paidAmount > 0 ? "PARTIAL" : confirmee ? "CONFIRMED" : "PENDING"
+  );
+  for (const fac of s.invoices.filter((x) => x.saleId === saleId)) {
+    fac.amount = total;
+    fac.status = "VALIDEE";
+    fac.notes = "";
+    fac.updatedAt = date;
+  }
+  audit(
+    s,
+    userId,
+    "\u062A\u0639\u062F\u064A\u0644 \u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629",
+    "\u0639\u0645\u0644\u064A\u0629 \u0628\u064A\u0639",
+    saleId,
+    `${sale.number} \u2014 \u0627\u0644\u0625\u062C\u0645\u0627\u0644\u064A ${ancienTotal} TND \u2192 ${total} TND`,
     date
   );
   return s;
@@ -2288,7 +2427,9 @@ function saleItems(s, v) {
   return list(v).map((x) => obj(x)).filter((x) => x["productId"]).map((x) => ({
     productId: ref(s, "products", x["productId"], { active: true }),
     quantity: qty(x["quantity"]),
-    unitPrice: num(x["unitPrice"] ?? 0, V.price, { min: 0, max: 1e5 })
+    unitPrice: num(x["unitPrice"] ?? 0, V.price, { min: 0, max: 1e5 }),
+    // frigo de la ligne (vente depuis les deux frigos : une facture par frigo)
+    ...x["frigoId"] ? { frigoId: ref(s, "frigos", x["frigoId"], { active: true }) } : {}
   }));
 }
 function boxRows(s, v, key = "typeId") {
@@ -2324,6 +2465,20 @@ var RULES = {
   },
   cancelSale: (s, [id, r]) => [ref(s, "sales", id), reason(r)],
   setSaleStatus: (s, [id, st]) => [ref(s, "sales", id), ref(s, "saleStatuses", st)],
+  editSale: (s, [id, i]) => {
+    const x = obj(i);
+    return [
+      ref(s, "sales", id),
+      {
+        items: saleItems(s, x["items"]).map(({ productId, quantity, unitPrice }) => ({
+          productId,
+          quantity,
+          unitPrice
+        })),
+        ...x["notes"] !== void 0 ? { notes: notes(x["notes"]) } : {}
+      }
+    ];
+  },
   setInvoiceStatus: (s, [id, st, note]) => [
     ref(s, "invoices", id),
     oneOf(st, ["VALIDEE", "A_VOIR", "ANNULEE"]),
@@ -2563,6 +2718,7 @@ var OPS = {
   cancelSale,
   setSaleStatus,
   setInvoiceStatus,
+  editSale,
   addCreditPayment,
   addManualCredit,
   setCreditStatus,
