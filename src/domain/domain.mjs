@@ -1788,7 +1788,8 @@ function buildSeed() {
       companyName: "\u0634\u0631\u0643\u0629 \u0627\u0644\u0625\u062E\u0648\u0629 \u0645\u062D\u062C\u0648\u0628",
       currency: "TND",
       defaultDueDays: 30,
-      packagingAlert: 40
+      packagingAlert: 40,
+      creditAlert: 1e3
     }
   };
   let r = 42;
@@ -2441,7 +2442,8 @@ function validateSettings(v) {
     companyName: text(x["companyName"], { min: 2, max: 120, msg: V.company }),
     currency: "TND",
     defaultDueDays: num(x["defaultDueDays"], V.days, { min: 1, max: 365, integer: true }),
-    packagingAlert: num(x["packagingAlert"], V.alert, { min: 0, max: 1e5, integer: true })
+    packagingAlert: num(x["packagingAlert"], V.alert, { min: 0, max: 1e5, integer: true }),
+    creditAlert: num(x["creditAlert"] ?? 1e3, V.alert, { min: 0, max: 1e7 })
   };
 }
 var RULES = {
