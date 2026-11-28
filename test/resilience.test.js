@@ -23,12 +23,13 @@ process.env.SCRYPT_CONCURRENCE = '2'; // file d'attente max = 8 calculs de mot d
 const { createApp } = await import('../src/server.js');
 const { createMemoryStore } = await import('../src/db/memory.js');
 const { compteurs, limite } = await import('../src/middlewares/http.js');
+const { remplir } = await import('./comptes-test.js');
 
 let server; let base; let app; let port;
 const T = {};
 
 before(async () => {
-  app = await createApp({ store: createMemoryStore() });
+  app = await createApp({ store: await remplir(createMemoryStore()) });
   server = http.createServer(app.handler);
   await new Promise((r) => server.listen(0, r));
   port = server.address().port;

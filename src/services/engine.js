@@ -231,7 +231,7 @@ export function vue(state, me) {
 }
 
 /** Comptes de démonstration (boutons de l'écran de connexion, si DEMO_LOGIN) */
-export const DEMO_IDS = ['u_super', 'u_admin', 'u_x', 'u_y', 'u_m', 'u_l'];
+export const DEMO_IDS = ['u_super', 'u_m', 'u_l'];
 
 /** Données de l'écran de connexion (avant authentification) */
 export function vuePublique(state, demoLogin) {

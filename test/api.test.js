@@ -18,6 +18,7 @@ const { createApp } = await import('../src/server.js');
 const { env } = await import('../src/config/env.js');
 const { createMemoryStore } = await import('../src/db/memory.js');
 const { stockOf, V } = await import('../src/domain/domain.mjs');
+const { remplir } = await import('./comptes-test.js');
 
 let server; let base; let app; let replSet; let makeStore;
 const T = {};
@@ -32,9 +33,9 @@ before(async () => {
       uri = replSet.getUri('frere-flow-test');
     }
     makeStore = () => createMongoStore(uri, { retries: 2, delayMs: 500 });
-    const s = makeStore(); await s.init(); await s.db.dropDatabase(); await s.close();
+    const s = makeStore(); await s.init(); await s.db.dropDatabase(); await remplir(s); await s.close();
   } else {
-    const shared = createMemoryStore();
+    const shared = await remplir(createMemoryStore());
     makeStore = () => shared;
   }
   app = await createApp({ store: makeStore() });
@@ -74,7 +75,7 @@ describe('Connexion', () => {
   it('santé et comptes de démonstration publics (sans emails ni mots de passe)', async () => {
     assert.equal((await ok(call('GET', '/health'))).ok, true);
     const p = await ok(call('GET', '/auth/public'));
-    assert.equal(p.users.length, 6);
+    assert.deepEqual(p.users.map((u) => u.id).sort(), ['u_l', 'u_m', 'u_super'], 'boutons : direction, marché, consultation seulement');
     assert.ok(p.users.every((u) => u.email === '' && u.password === ''));
     assert.equal(p.roles.length, 5);
     assert.equal(p.teams.length, 2);
@@ -94,10 +95,12 @@ describe('Connexion', () => {
     T.v = r.version;
   });
   it('connexion de démonstration (boutons de la page de connexion)', async () => {
-    T.walid = (await ok(call('POST', '/auth/demo', { userId: 'u_x' }))).cookie;
-    T.riadh = (await ok(call('POST', '/auth/demo', { userId: 'u_y' }))).cookie;
+    T.walid = (await ok(call('POST', '/auth/login', { email: 'walid@frere-mahjoub.tn', password: 'Demo2026' }))).cookie;
+    T.riadh = (await ok(call('POST', '/auth/login', { email: 'riadh@frere-mahjoub.tn', password: 'Demo2026' }))).cookie;
+    assert.equal((await call('POST', '/auth/demo', { userId: 'u_x' })).status, 401, 'pas de bouton de démonstration pour un compte hors direction / marché / consultation');
+    await ok(call('POST', '/auth/demo', { userId: 'u_m' }));
     env.demoLogin = false;
-    assert.equal((await call('POST', '/auth/demo', { userId: 'u_x' })).status, 403);
+    assert.equal((await call('POST', '/auth/demo', { userId: 'u_m' })).status, 403);
     env.demoLogin = true;
   });
   it('données protégées par la session', async () => {
@@ -700,10 +703,10 @@ describe('Modes de sécurité de la connexion', () => {
   });
   it('la connexion de démonstration ne contourne jamais un mode de sécurité', async () => {
     const s = await etat(T.admin);
-    const walid = s.users.find((u) => u.id === 'u_x');
-    await ok(op(T.admin, 'upsert', ['users', { ...walid, secMode: 'pin' }]));
-    assert.equal((await call('POST', '/auth/demo', { userId: 'u_x' })).status, 401);
-    await ok(op(T.admin, 'upsert', ['users', { ...walid, secMode: 'none' }]));
+    const marche = s.users.find((u) => u.id === 'u_m');
+    await ok(op(T.admin, 'upsert', ['users', { ...marche, secMode: 'pin' }]));
+    assert.equal((await call('POST', '/auth/demo', { userId: 'u_m' })).status, 401);
+    await ok(op(T.admin, 'upsert', ['users', { ...marche, secMode: 'none' }]));
   });
 });
 

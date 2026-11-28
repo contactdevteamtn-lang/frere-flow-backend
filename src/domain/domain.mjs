@@ -1544,45 +1544,10 @@ function buildSeed() {
         description: "\u0635\u0644\u0627\u062D\u064A\u0629 \u0643\u0627\u0645\u0644\u0629 \u0644\u062C\u0645\u064A\u0639 \u0627\u0644\u0623\u0642\u0633\u0627\u0645",
         permissions: [...SUPER_PERMS]
       },
-      {
-        id: "role_admin",
-        name: "\u0645\u062F\u064A\u0631",
-        description: "\u0625\u062F\u0627\u0631\u0629 \u0627\u0644\u0639\u0645\u0644\u064A\u0627\u062A \u0627\u0644\u064A\u0648\u0645\u064A\u0629",
-        permissions: [
-          "dashboard",
-          "clients",
-          "produits",
-          "ventes",
-          "marches",
-          "credits",
-          "paiements",
-          "caisse",
-          "stock",
-          "frigos",
-          "emballages",
-          "equipes",
-          "rapports"
-        ]
-      },
-      {
-        id: "role_emp",
-        name: "\u0645\u0648\u0638\u0641",
-        description: "\u0635\u0644\u0627\u062D\u064A\u0627\u062A \u062A\u0634\u063A\u064A\u0644\u064A\u0629 \u0645\u062D\u062F\u0648\u062F\u0629",
-        permissions: [
-          "dashboard",
-          "clients",
-          "ventes",
-          "marches",
-          "paiements",
-          "emballages",
-          "produits",
-          "stock"
-        ]
-      },
       { ...MARKET_ROLE, permissions: [...MARKET_ROLE.permissions] },
       { ...READONLY_ROLE, permissions: [...READONLY_ROLE.permissions] }
     ],
-    // 3 comptes stables (identiques à chaque installation, à changer ensuite par le client) + comptes de démonstration
+    // 3 comptes uniquement : direction, marché, consultation (à changer ensuite par le client)
     users: [
       {
         id: "u_super",
@@ -1619,44 +1584,6 @@ function buildSeed() {
         roleIds: ["role_lecture"],
         secMode: "none",
         passwordInitial: true
-      },
-      {
-        id: "u_admin",
-        name: "\u0646\u0627\u062F\u064A\u0629 \u0645\u062D\u062C\u0648\u0628",
-        email: "admin@frere-mahjoub.tn",
-        phone: "+216 98 300 200",
-        password: "Demo2026",
-        active: true,
-        createdAt: "2025-02-11",
-        roleIds: ["role_admin"],
-        secMode: "none",
-        passwordInitial: true
-      },
-      {
-        id: "u_x",
-        name: "\u0648\u0644\u064A\u062F \u0643\u0645\u0648\u0646",
-        email: "walid@frere-mahjoub.tn",
-        phone: "+216 22 110 330",
-        password: "Demo2026",
-        active: true,
-        createdAt: "2025-03-01",
-        roleIds: ["role_emp"],
-        teamId: "team_1",
-        secMode: "none",
-        passwordInitial: true
-      },
-      {
-        id: "u_y",
-        name: "\u0631\u064A\u0627\u0636 \u0634\u0639\u0628\u0627\u0646",
-        email: "riadh@frere-mahjoub.tn",
-        phone: "+216 55 870 441",
-        password: "Demo2026",
-        active: true,
-        createdAt: "2025-03-01",
-        roleIds: ["role_emp"],
-        teamId: "team_2",
-        secMode: "none",
-        passwordInitial: true
       }
     ],
     teams: [
@@ -1666,7 +1593,7 @@ function buildSeed() {
         nameAlt: "Frigo Fawzi",
         code: "FAWZI",
         description: "\u0641\u0631\u064A\u0642 \u063A\u0631\u0641\u0629 \u062A\u0628\u0631\u064A\u062F \u0641\u0648\u0632\u064A",
-        responsable: "\u0648\u0644\u064A\u062F \u0643\u0645\u0648\u0646",
+        responsable: "\u0641\u0648\u0632\u064A",
         active: true
       },
       {
@@ -1675,7 +1602,7 @@ function buildSeed() {
         nameAlt: "Frigo Houssem",
         code: "HOUSSEM",
         description: "\u0641\u0631\u064A\u0642 \u063A\u0631\u0641\u0629 \u062A\u0628\u0631\u064A\u062F \u062D\u0633\u0627\u0645",
-        responsable: "\u0631\u064A\u0627\u0636 \u0634\u0639\u0628\u0627\u0646",
+        responsable: "\u062D\u0633\u0627\u0645",
         active: true
       }
     ],
@@ -1832,7 +1759,7 @@ function buildSeed() {
           reference: `BR-${100 + pi * 3 + fi}`,
           notes: "\u0627\u0633\u062A\u0644\u0627\u0645 \u0627\u0644\u0645\u062D\u0635\u0648\u0644"
         },
-        "u_admin",
+        "u_super",
         day2(190)
       );
     })
@@ -1848,7 +1775,7 @@ function buildSeed() {
       reference: "TR-001",
       notes: "\u0625\u0639\u0627\u062F\u0629 \u062A\u0648\u0632\u064A\u0639"
     },
-    "u_admin",
+    "u_super",
     day2(60)
   );
   const ourTypes = s.packagingTypes.filter((t) => !t.clientOwned);
@@ -1856,7 +1783,7 @@ function buildSeed() {
   for (let i = 0; i < 46; i++) {
     const offset = 180 - Math.floor(i * 3.9) - Math.floor(rnd() * 3);
     const teamId = i % 2 ? "team_2" : "team_1";
-    const userId = teamId === "team_1" ? "u_x" : "u_y";
+    const userId = "u_super";
     const client2 = pick(s.clients);
     const frigoId = pick(s.frigos).id;
     const lines = Array.from({ length: 1 + Math.floor(rnd() * 3) }, () => {
@@ -1899,7 +1826,7 @@ function buildSeed() {
       s = addCreditPayment(
         s,
         { creditId: c.id, amount: amount2, method: "ESPECES", notes: "\u062F\u0641\u0639\u0629" },
-        c.teamId === "team_1" ? "u_x" : "u_y",
+        "u_super",
         d
       );
   }
@@ -1919,7 +1846,7 @@ function buildSeed() {
           quantity: Math.ceil(m.quantity * 0.6),
           notes: "\u0645\u0631\u062A\u062C\u0639 \u0627\u0644\u0639\u0645\u064A\u0644"
         },
-        "u_x",
+        "u_super",
         d
       );
     } catch {
@@ -1941,7 +1868,7 @@ function buildSeed() {
           quantity: q,
           notes: "\u0635\u0646\u0627\u062F\u064A\u0642 \u0627\u0644\u0639\u0645\u064A\u0644"
         },
-        "u_admin",
+        "u_super",
         day2(5)
       );
   }
