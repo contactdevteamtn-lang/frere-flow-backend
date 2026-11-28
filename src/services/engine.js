@@ -117,7 +117,8 @@ const directeursActifs = (users) => users.filter((u) => u.active && estDirecteur
 function controlesServeur(state, me, name, args) {
   // ── Produit + entrée en stock : la quantité dans un frigo demande aussi le droit « stock » ──
   if (name === 'saveProduct' && args[1] && !permissionsOf(state, me).has('stock')) throw new HttpError(403, MSG.interdit, 'INTERDIT');
-  // ── Comptes : le directeur général est protégé contre les autres administrateurs ──
+  // ── Comptes : seul le directeur général (super admin) ajoute, modifie ou supprime un compte ──
+  if ((name === 'upsert' || name === 'remove') && args[0] === 'users' && !estDirecteur(me)) throw new HttpError(403, MSG.reserveDirecteur, 'DIRECTEUR');
   if (name === 'upsert' && args[0] === 'users') {
     const u = args[1]; const ancien = state.users.find((x) => x.id === u?.id);
     if ((estDirecteur(ancien) || u?.roleIds?.includes(SUPER)) && !estDirecteur(me)) throw new HttpError(403, MSG.reserveDirecteur, 'DIRECTEUR');

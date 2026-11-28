@@ -553,8 +553,25 @@ describe('Comptes stables, mot de passe, protection du directeur', () => {
       const r = await appel('POST', `/ops/${name}`, { args }, K);
       assert.equal(r.status, 403, `${name} ${JSON.stringify(args).slice(0, 80)}`);
     }
-    // il peut gérer un compte ordinaire
-    assert.equal((await appel('POST', '/ops/upsert', { args: ['users', { name: 'هالة', email: 'hela@frere-mahjoub.tn', phone: '', password: 'Hela2026xx', active: true, createdAt: '2026-11-16', roleIds: ['role_emp'] }] }, K)).status, 200);
+    // ni même un compte ordinaire : la gestion des comptes est réservée au directeur général
+    assert.equal((await appel('POST', '/ops/upsert', { args: ['users', { name: 'هالة', email: 'hela@frere-mahjoub.tn', phone: '', password: 'Hela2026xx', active: true, createdAt: '2026-11-16', roleIds: ['role_emp'] }] }, K)).status, 403);
+    assert.equal((await appel('POST', '/ops/remove', { args: ['users', 'u_l'] }, K)).status, 403);
+  });
+  it('le directeur général ajoute un compte, change son rôle, puis le supprime', async () => {
+    await ok(op(T.admin, 'upsert', ['users', { name: 'منى', email: 'mouna@frere-mahjoub.tn', phone: '', password: 'Mouna2026x', active: true, createdAt: '2026-11-28', roleIds: ['role_lecture'] }]));
+    let s = await etat(T.admin);
+    const mouna = s.users.find((u) => u.email === 'mouna@frere-mahjoub.tn');
+    const M = (await appel('POST', '/auth/login', { email: 'mouna@frere-mahjoub.tn', password: 'Mouna2026x' }, {})).jar;
+    await ok(op(T.admin, 'upsert', ['users', { ...mouna, name: 'منى ب.', phone: '+216 20 000 000', password: '', roleIds: ['role_marche'] }]));
+    s = await etat(T.admin);
+    const modifie = s.users.find((u) => u.id === mouna.id);
+    assert.deepEqual([modifie.name, modifie.roleIds], ['منى ب.', ['role_marche']]);
+    await ok(op(T.admin, 'remove', ['users', mouna.id]));
+    s = await etat(T.admin);
+    assert.ok(!s.users.some((u) => u.id === mouna.id));
+    assert.equal((await call('POST', '/auth/login', { email: 'mouna@frere-mahjoub.tn', password: 'Mouna2026x' })).status, 401);
+    assert.equal((await appel('GET', '/state', undefined, M)).status, 401, 'la session du compte supprimé ne fonctionne plus');
+    assert.equal((await op(T.admin, 'remove', ['users', 'u_super'])).status, 422, 'pas son propre compte');
   });
   it('le dernier directeur général ne peut pas être retiré, et un rôle utilisé ne peut pas être supprimé', async () => {
     const s = await etat(T.admin);
